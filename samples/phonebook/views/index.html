@@ -1,0 +1,26 @@
+<html>
+<head>
+<title>Index</title>
+<link rel="stylesheet" type="text/css" href="/phonebook/style.css">
+<body>
+<h2>Entries</h2>
+<table>
+<tr>
+<th>Given Name
+<th>Family Name
+<th>Phone Number
+<th>E-Mail Address
+{% for entry in entries %}
+<tr>
+<td>{{ entry.given_name }}
+<td>{{ entry.family_name }}
+<td>{{ entry.phone_number }}
+<td>{{ entry.e_mail_address }}
+<td><a href="/phonebook/entries/{{ loop.index }}">Show</a>
+<td><a href="/phonebook/entries/{{ loop.index }}/edit">Edit</a>
+<td><a href="/phonebook/entries/{{ loop.index }}?_method=DELETE">Delete</a>
+{% endfor %}
+</table>
+
+<a href="/phonebook/entries/new">Add</a>
+</html>

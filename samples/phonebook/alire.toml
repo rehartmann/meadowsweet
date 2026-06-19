@@ -1,0 +1,23 @@
+name = "phonebook"
+description = "Meadowsweet sample application"
+version = "0.1.0-dev"
+
+authors = ["RenÃ© Hartmann"]
+maintainers = ["RenÃ© Hartmann <rhartmann@users.sourceforge.net>"]
+maintainers-logins = ["rehartmann"]
+licenses = "Apache-2.0"
+website = ""
+tags = ["mvc", "web"]
+
+executables = ["phonebook"]
+
+[[depends-on]]
+servletada_aws = "^1.8.1"
+
+[[depends-on]]
+meadowsweet = "*"
+meadowsweet_jintp = "*"
+
+[[pins]]
+meadowsweet = { path = "../.." }
+meadowsweet_jintp = { path = "../../../meadowsweet_jintp" }

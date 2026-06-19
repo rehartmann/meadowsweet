@@ -1,5 +1,4 @@
 with Ada.Strings.Fixed;
-with Ada.Text_IO; use Ada.Text_IO;
 with Util.Beans.Objects;
 
 package body Meadowsweet is
@@ -75,7 +74,6 @@ package body Meadowsweet is
             exit;
          end if;
       end loop;
-      Ada.Text_IO.Put_Line ("Result is " & To_String (Result));
       return To_String (Result);
    end To_Regexp;
 
@@ -123,9 +121,6 @@ package body Meadowsweet is
       Effective_Method : constant String :=
         (if Parameter_Method = "" then Method else Parameter_Method);
    begin
-      Put_Line ("request received, path info: " & Path_Info & ", method: "
-                & Effective_Method);
-
       for R of Dispatcher.Context.Routes loop
          if R.Method = Effective_Method then
             declare
@@ -135,7 +130,6 @@ package body Meadowsweet is
                if Matches (0) /= No_Match then
                   Set_Path_Parameters (Request, Path_Info,
                                        R.Parameter_Names, Matches);
-                  Ada.Text_IO.Put_Line ("Calling action");
                   R.Action (Request, Response);
                   return;
                end if;
