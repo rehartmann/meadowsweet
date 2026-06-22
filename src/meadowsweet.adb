@@ -6,7 +6,7 @@ package body Meadowsweet is
    use Ada.Strings.Fixed;
    use GNAT.Regpat;
 
-   Servlet_Name : constant String := "mvc";
+   Servlet_Name : constant String := "meadowsweet-dispatcher";
 
    procedure Initialize
      (Context : aliased in out Web_Context;
