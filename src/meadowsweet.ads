@@ -22,6 +22,8 @@ package Meadowsweet is
    function Property_Names (This : Inspectable_Bean)
                             return String_Array is abstract;
 
+   --  Returns the value of the path parameter with the given name.
+   --  A path parameter is delimited by curly brackets, e.g. {id}.
    function Get_Path_Parameter
      (Request : in out Servlet.Requests.Request'Class;
       Name : String)
@@ -42,6 +44,8 @@ package Meadowsweet is
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
 
+   --  Initializes a web context. This procedure must be called before
+   --  calling Add_Route.
    procedure Initialize
      (Context : aliased in out Web_Context;
       Registry : aliased in out Servlet.Core.Servlet_Registry;
@@ -49,6 +53,10 @@ package Meadowsweet is
       URI : String;
       Pattern : String);
 
+   --  Adds a route to the web context.
+   --  A route consists of a HTTP method, a path, and an action.
+   --  When a request is received which matches the path and method of a route,
+   --  the specified action procedure is invoked.
    procedure Add_Route
      (Context : aliased in out Web_Context;
       Method : String;
