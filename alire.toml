@@ -12,8 +12,3 @@ tags = ["mvc", "web"]
 [[depends-on]]
 servletada = "^1.8.1"
 
-[[depends-on]]
-gnatcoll_minimal = "^26.0.0"
-
-[[depends-on]]
-gnatcoll = "^26.0.0"

@@ -1,16 +1,21 @@
 with Ada.Containers;
+with Ada.Containers.Hashed_Maps;
 with Ada.Containers.Vectors;
+with Ada.Strings;
 with Ada.Strings.Unbounded;
+with Ada.Strings.Unbounded.Hash;
 with Servlet.Core;
 with Servlet.Server;
 with Servlet.Requests;
 with Servlet.Responses;
 with Util.Beans.Basic;
 with GNAT.Regpat;
+with Util.Beans.Objects;
 
 package Meadowsweet is
 
    use Ada.Strings.Unbounded;
+   use Util.Beans.Objects;
 
    type Web_Context is limited private;
 
@@ -18,6 +23,8 @@ package Meadowsweet is
 
    type Inspectable_Bean is abstract new Util.Beans.Basic.Readonly_Bean
    with null record;
+
+   type Inspectable_Bean_Access is access all Meadowsweet.Inspectable_Bean;
 
    function Property_Names (This : Inspectable_Bean)
                             return String_Array is abstract;
@@ -115,13 +122,30 @@ private
       Action : Action_Access;
    end record;
 
-   package Route_Vector is new Ada.Containers.Vectors
+   package Route_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive,
       Element_Type => Route);
 
    type Web_Context is record
       Dispatcher : aliased Dispatcher_Servlet;
-      Routes : Route_Vector.Vector;
+      Routes : Route_Vectors.Vector;
    end record;
+
+   package Bean_Maps is new Ada.Containers.Hashed_Maps
+     (Key_Type        => Unbounded_String,
+      Element_Type    => Util.Beans.Objects.Object,
+      Hash            => Ada.Strings.Unbounded.Hash,
+      Equivalent_Keys => Ada.Strings.Unbounded."=");
+
+   type Dynamic_Bean is new Inspectable_Bean with record
+      Attributes : Bean_Maps.Map;
+   end record;
+
+   overriding function Get_Value (From : Dynamic_Bean;
+                                  Name : String)
+                                  return Util.Beans.Objects.Object;
+
+   overriding function Property_Names (From : Dynamic_Bean)
+                                       return String_Array;
 
 end Meadowsweet;

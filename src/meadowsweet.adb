@@ -1,5 +1,4 @@
 with Ada.Strings.Fixed;
-with Util.Beans.Objects;
 
 package body Meadowsweet is
 
@@ -201,5 +200,21 @@ package body Meadowsweet is
       return Util.Beans.Objects.To_String
         (Request.Get_Attribute ("path-parameter." & Name));
    end Get_Path_Parameter;
+
+   overriding function Get_Value (From : Dynamic_Bean;
+                                  Name : String)
+                                  return Util.Beans.Objects.Object
+   is
+   begin
+      return From.Attributes (To_Unbounded_String (Name));
+   end Get_Value;
+
+   overriding function Property_Names (From : Dynamic_Bean)
+                                       return String_Array
+   is
+      Names : String_Array (1 .. Integer (From.Attributes.Length));
+   begin
+      return Names;
+   end Property_Names;
 
 end Meadowsweet;
