@@ -1,4 +1,4 @@
-with Meadowsweet_Jintp;
+with Meadowsweet.Jintp;
 
 package body Phonebook_Actions is
 
@@ -6,7 +6,7 @@ package body Phonebook_Actions is
 
    Entries : Address_Entries;
 
-   Renderer : Meadowsweet_Jintp.Jintp_Renderer;
+   Renderer : Meadowsweet.Jintp.Jintp_Renderer;
 
    procedure Index
      (Request : in out Servlet.Requests.Request'Class;
