@@ -41,25 +41,35 @@ package body Phonebook_Actions is
       return Address;
    end Get_Address;
 
-   function Validate (Address : in out Address_Entry)
-                      return Boolean is
+   function Validate (Address : in out Address_Entry;
+                      Ok : out Boolean)
+                      return String is
    begin
       if Ada.Strings.Unbounded.Index (Address.E_Mail_Address, "@") = 0 then
-         Address.Message := To_Unbounded_String ("E-mail address is invalid.");
-         return False;
+         Ok := False;
+         return "E-mail address is invalid.";
       end if;
-      return True;
+      Ok := True;
+      return "";
    end Validate;
 
    procedure Create
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class)
    is
-      Address : Address_Entry := Get_Address (Request);
+      Address : aliased Address_Entry := Get_Address (Request);
+      Ok : Boolean;
+      Message : constant String := Validate (Address, Ok);
    begin
-      if not Validate (Address) then
-         Renderer.Render_Response ("views/new.html", Address, Response);
-         return;
+      if not Ok then
+         declare
+            Model : Meadowsweet.Dynamic_Bean;
+         begin
+            Model.Set_Value ("address", To_Object (Address'Access, STATIC));
+            Model.Set_Value ("message", To_Object (Message));
+            Renderer.Render_Response ("views/new.html", Model, Response);
+            return;
+         end;
       end if;
       Entries.Addresses.Append (Address);
       Response.Send_Redirect ("/phonebook/entries");
@@ -69,13 +79,17 @@ package body Phonebook_Actions is
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class)
    is
-      Id : Positive;
-      Address : Address_Entry;
+      Address : aliased Address_Entry;
+      Model : Meadowsweet.Dynamic_Bean;
+      Id : constant Positive
+        := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
+      Empty_Message : constant String := "";
    begin
-      Id := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
       Address := Entries.Addresses (Id);
       Address.Id := Id;
-      Renderer.Render_Response ("views/edit.html", Address, Response);
+      Model.Set_Value ("address", To_Object (Address'Access, STATIC));
+      Model.Set_Value ("message", To_Object (Empty_Message));
+      Renderer.Render_Response ("views/edit.html", Model, Response);
    exception
       when Constraint_Error =>
          Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
@@ -100,13 +114,21 @@ package body Phonebook_Actions is
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class)
    is
-      Address : Address_Entry := Get_Address (Request);
-      Id : Positive;
+      Address : aliased Address_Entry := Get_Address (Request);
+      Id : constant Positive
+        := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
+      Ok : Boolean;
+      Message : constant String := Validate (Address, Ok);
    begin
-      Id := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
-      if not Validate (Address) then
+      if not Ok then
          Address.Id := Id;
-         Renderer.Render_Response ("views/edit.html", Address, Response);
+         declare
+            Model : Meadowsweet.Dynamic_Bean;
+         begin
+            Model.Set_Value ("address", To_Object (Address'Access, STATIC));
+            Model.Set_Value ("message", To_Object (Message));
+            Renderer.Render_Response ("views/edit.html", Model, Response);
+         end;
          return;
       end if;
       Entries.Addresses.Replace_Element (Id, Address);
@@ -134,8 +156,7 @@ package body Phonebook_Actions is
               To_Unbounded_String ("family_name"),
               To_Unbounded_String ("phone_number"),
               To_Unbounded_String ("e_mail_address"),
-              To_Unbounded_String ("id"),
-              To_Unbounded_String ("message"));
+              To_Unbounded_String ("id"));
    end Property_Names;
 
    overriding function Get_Value (From : Address_Entry;
@@ -159,9 +180,6 @@ package body Phonebook_Actions is
       end if;
       if Name = "id" then
          return To_Object (From.Id);
-      end if;
-      if Name = "message" then
-         return To_Object (From.Message);
       end if;
       return Null_Object;
    end Get_Value;

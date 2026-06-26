@@ -4,11 +4,11 @@
 <link rel="stylesheet" type="text/css" href="/phonebook/style.css">
 <body>
 <form method="POST" action="/phonebook/entries" enctype="application/x-www-form-urlencoded">
-<p><label>Given name: <input name="given_name" value="{{ given_name }}"></label>
-<p><label>Family name: <input name="family_name" value="{{ family_name }}"></label>
-<p><label>Phone_Number: <input name="phone_number" value="{{ phone_number }}"></label>
+<p><label>Given name: <input name="given_name" value="{{ address.given_name }}"></label>
+<p><label>Family name: <input name="family_name" value="{{ address.family_name }}"></label>
+<p><label>Phone_Number: <input name="phone_number" value="{{ address.phone_number }}"></label>
 <p><label>E-Mail address: <input name="e_mail_address" value="{{
-e_mail_address }}"></label>
+address.e_mail_address }}"></label>
 <p><button>Submit</button>
 <p>{{ message }}
 </form>

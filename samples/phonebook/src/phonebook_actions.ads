@@ -15,7 +15,6 @@ package Phonebook_Actions is
       Phone_Number : Unbounded_String;
       E_Mail_Address : Unbounded_String;
       Id : Natural := 0;
-      Message : Unbounded_String;
    end record;
 
    type Address_Entry_Access is access Address_Entry;

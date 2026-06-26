@@ -1,7 +1,8 @@
 with Ada.Containers;
-with Ada.Containers.Hashed_Maps;
+with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Vectors;
 with Ada.Strings;
+with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
 with Servlet.Core;
@@ -50,6 +51,19 @@ package Meadowsweet is
    type Action_Access is access procedure
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
+
+   type Dynamic_Bean is new Inspectable_Bean with private;
+
+   overriding function Get_Value (From : Dynamic_Bean;
+                                  Name : String)
+                                  return Util.Beans.Objects.Object;
+
+   overriding function Property_Names (From : Dynamic_Bean)
+                                       return String_Array;
+
+   procedure Set_Value (This : in out Dynamic_Bean;
+                        Name : String;
+                        Value : Util.Beans.Objects.Object);
 
    --  Initializes a web context. This procedure must be called before
    --  calling Add_Route.
@@ -131,21 +145,14 @@ private
       Routes : Route_Vectors.Vector;
    end record;
 
-   package Bean_Maps is new Ada.Containers.Hashed_Maps
-     (Key_Type        => Unbounded_String,
+   package Bean_Maps is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
       Element_Type    => Util.Beans.Objects.Object,
-      Hash            => Ada.Strings.Unbounded.Hash,
-      Equivalent_Keys => Ada.Strings.Unbounded."=");
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
 
    type Dynamic_Bean is new Inspectable_Bean with record
       Attributes : Bean_Maps.Map;
    end record;
-
-   overriding function Get_Value (From : Dynamic_Bean;
-                                  Name : String)
-                                  return Util.Beans.Objects.Object;
-
-   overriding function Property_Names (From : Dynamic_Bean)
-                                       return String_Array;
 
 end Meadowsweet;

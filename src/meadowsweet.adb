@@ -206,15 +206,28 @@ package body Meadowsweet is
                                   return Util.Beans.Objects.Object
    is
    begin
-      return From.Attributes (To_Unbounded_String (Name));
+      return From.Attributes (Name);
    end Get_Value;
 
    overriding function Property_Names (From : Dynamic_Bean)
                                        return String_Array
    is
       Names : String_Array (1 .. Integer (From.Attributes.Length));
+      I : Natural := Names'First;
    begin
+      for C in From.Attributes.Iterate loop
+         Names (I) := To_Unbounded_String (Bean_Maps.Key (C));
+         I := I + 1;
+      end loop;
       return Names;
    end Property_Names;
+
+   procedure Set_Value (This : in out Dynamic_Bean;
+                        Name : String;
+                        Value : Util.Beans.Objects.Object)
+   is
+   begin
+      This.Attributes.Include (Name, Value);
+   end Set_Value;
 
 end Meadowsweet;
