@@ -1,11 +1,9 @@
 with GNATCOLL.JSON;
-with Util.Beans.Objects;
 with Servlet.Streams;
 
 package body Meadowsweet.Json is
 
    use GNATCOLL.JSON;
-   use Util.Beans.Objects;
 
    function To_JSON (Source : Meadowsweet.Inspectable_Bean'Class)
                      return JSON_Value;
