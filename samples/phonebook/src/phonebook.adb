@@ -39,6 +39,8 @@ begin
                   Phonebook_Actions.Update'Access);
    Meadowsweet.Add_Route (Context, "DELETE", "/entries/{id}",
                   Phonebook_Actions.Delete'Access);
+   --  Meadowsweet.Add_Route (Context, "GET", "/entries/{id}/json",
+   --               Phonebook_Actions.Json'Access);
 
    WS.Start;
    delay 6000.0;
