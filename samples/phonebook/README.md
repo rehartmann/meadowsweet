@@ -7,7 +7,8 @@ Steps to run the application:
 2. Create the table `addresses` in this datababase using the definition in
 `dbschema/schema.sql`.
 
-3. Run the application, e.g. using `alr run`.
+3. Run the application, e.g. using `alr run` with a user which has INSERT,
+SELECT, UPDATE, and DELETE rights on table `addresses`.
 
 4. Open http://localhost:8080/phonebook/entries in your browser to see the application.
 
