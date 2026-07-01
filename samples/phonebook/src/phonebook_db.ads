@@ -26,7 +26,7 @@ package Phonebook_DB is
 
    type Address_Entry_Access is access Address_Entry;
 
-   function Get (Id : Natural) return Address_Entry;
+   function Get (Id : Positive) return Address_Entry;
 
    package Address_Entry_Vectors is new Ada.Containers.Vectors
      (Index_Type => Positive,

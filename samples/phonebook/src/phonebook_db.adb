@@ -50,7 +50,7 @@ package body Phonebook_DB is
       return Null_Object;
    end Get_Value;
 
-   function Get (Id : Natural) return Address_Entry is
+   function Get (Id : Positive) return Address_Entry is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
       Q : constant SQL_Query := SQL_Select
