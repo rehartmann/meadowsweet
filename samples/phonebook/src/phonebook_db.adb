@@ -1,4 +1,3 @@
-with Ada.Text_IO;
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
 with GNATCOLL.SQL.Postgres;
@@ -63,6 +62,9 @@ package body Phonebook_DB is
       R : GNATCOLL.SQL.Exec.Forward_Cursor;
    begin
       R.Fetch (DB, Q);
+      if not Success (DB) then
+         raise Database_Error with Last_Error_Message (DB);
+      end if;
       if GNATCOLL.SQL.Exec.Has_Row (R) then
          return ((Id => Id,
                   Given_Name => Unbounded_Value (R, 0),
@@ -91,6 +93,9 @@ package body Phonebook_DB is
       Result : Address_Entry_Vectors.Vector;
    begin
       R.Fetch (DB, Q);
+      if not Success (DB) then
+         raise Database_Error with Last_Error_Message (DB);
+      end if;
       while GNATCOLL.SQL.Exec.Has_Row (R) loop
          Result.Append ((Id => Integer_Value (R, 0),
                          Given_Name => Unbounded_Value (R, 1),
@@ -116,11 +121,9 @@ package body Phonebook_DB is
    begin
       GNATCOLL.SQL.Exec.Execute (Connection => DB,
                                  Query => Q);
-      DB.Commit;
+      Commit_Or_Rollback (DB);
       if not Success (DB) then
-         DB.Rollback;
-         Ada.Text_IO.Put_Line
-           ("Error: " & Last_Error_Message (DB));
+         raise Database_Error with Last_Error_Message (DB);
       end if;
    end Insert;
 
@@ -138,11 +141,9 @@ package body Phonebook_DB is
    begin
       GNATCOLL.SQL.Exec.Execute (Connection => DB,
                                  Query => Q);
-      DB.Commit;
+      Commit_Or_Rollback (DB);
       if not Success (DB) then
-         DB.Rollback;
-         Ada.Text_IO.Put_Line
-           ("Error: " & Last_Error_Message (DB));
+         raise Database_Error with Last_Error_Message (DB);
       end if;
    end Update;
 
@@ -155,11 +156,9 @@ package body Phonebook_DB is
    begin
       GNATCOLL.SQL.Exec.Execute (Connection => DB,
                                  Query => Q);
-      DB.Commit;
+      Commit_Or_Rollback (DB);
       if not Success (DB) then
-         DB.Rollback;
-         Ada.Text_IO.Put_Line
-           ("Error: " & Last_Error_Message (DB));
+         raise Database_Error with Last_Error_Message (DB);
       end if;
    end Delete;
 

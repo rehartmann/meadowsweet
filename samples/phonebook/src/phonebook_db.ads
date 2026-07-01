@@ -40,4 +40,6 @@ package Phonebook_DB is
 
    procedure Delete (Id : Positive);
 
+   Database_Error : exception;
+
 end Phonebook_DB;
