@@ -1,6 +1,5 @@
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
-with Util.Beans.Objects;
 
 package Meadowsweet.Persistence is
 
@@ -15,34 +14,32 @@ package Meadowsweet.Persistence is
    package Tables is
 
       procedure Insert
-        (Table_Name : String;
-         DB : GNATCOLL.SQL.Exec.Database_Connection;
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
          Bean : Bean_Type);
 
       procedure Update
-        (Table_Name : String;
-         DB : GNATCOLL.SQL.Exec.Database_Connection;
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
          Bean : Bean_Type);
 
       function Get
-        (SQL : String;
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         SQL : String;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
-         := GNATCOLL.SQL.Exec.No_Parameters;
-         DB : GNATCOLL.SQL.Exec.Database_Connection)
+         := GNATCOLL.SQL.Exec.No_Parameters)
          return Bean_Type;
 
       function Get
-        (SQL : String;
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         SQL : String;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
-         := GNATCOLL.SQL.Exec.No_Parameters;
-         DB : GNATCOLL.SQL.Exec.Database_Connection)
+         := GNATCOLL.SQL.Exec.No_Parameters)
          return Util.Beans.Objects.Object_Array;
 
       function Get_From_Table
-        (Table_Name : String;
-         Params : GNATCOLL.SQL.Exec.SQL_Parameters
-         := GNATCOLL.SQL.Exec.No_Parameters;
-         DB : GNATCOLL.SQL.Exec.Database_Connection)
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String)
          return Util.Beans.Objects.Object_Array;
 
    end Tables;

@@ -41,8 +41,8 @@ package body Meadowsweet.Persistence is
       end To_Parameter;
 
       procedure Insert
-        (Table_Name : String;
-         DB : Database_Connection;
+        (DB : Database_Connection;
+         Table_Name : String;
          Bean : Bean_Type)
       is
          Column_Names : constant String_Array := Bean.Property_Names;
@@ -100,8 +100,8 @@ package body Meadowsweet.Persistence is
       end Insert;
 
       procedure Update
-        (Table_Name : String;
-         DB : Database_Connection;
+        (DB : Database_Connection;
+         Table_Name : String;
          Bean : Bean_Type)
       is
          Column_Names : constant String_Array := Bean.Property_Names;
@@ -154,10 +154,12 @@ package body Meadowsweet.Persistence is
          end if;
       end Update;
 
-      function Get (SQL : String;
-                    Params : SQL_Parameters := No_Parameters;
-                    DB : Database_Connection)
-                    return Bean_Type is
+      function Get
+        (DB : Database_Connection;
+         SQL : String;
+         Params : SQL_Parameters := No_Parameters)
+         return Bean_Type
+      is
          R : GNATCOLL.SQL.Exec.Forward_Cursor;
          P : constant Prepared_Statement :=
            GNATCOLL.SQL.Exec.Prepare (SQL,
@@ -176,9 +178,9 @@ package body Meadowsweet.Persistence is
       type Bean_Type_Access is access Bean_Type;
 
       function Get
-        (SQL : String;
-         Params : SQL_Parameters := No_Parameters;
-         DB : Database_Connection)
+        (DB : Database_Connection;
+         SQL : String;
+         Params : SQL_Parameters := No_Parameters)
          return Util.Beans.Objects.Object_Array
       is
          R : GNATCOLL.SQL.Exec.Direct_Cursor;
@@ -205,12 +207,11 @@ package body Meadowsweet.Persistence is
       end Get;
 
       function Get_From_Table
-        (Table_Name : String;
-         Params : SQL_Parameters := No_Parameters;
-         DB : Database_Connection)
+        (DB : Database_Connection;
+         Table_Name : String)
          return Util.Beans.Objects.Object_Array is
       begin
-         return Get ("SELECT * FROM " & Table_Name, Params, DB);
+         return Get (DB, "SELECT * FROM " & Table_Name);
       end Get_From_Table;
 
    end Tables;
