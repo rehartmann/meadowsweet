@@ -13,15 +13,13 @@ package Meadowsweet.Persistence is
 
    package Tables is
 
-      procedure Insert
-        (DB : GNATCOLL.SQL.Exec.Database_Connection;
-         Table_Name : String;
-         Bean : Bean_Type);
+      type Bean_Array is array (Positive range <>) of Bean_Type;
 
-      procedure Update
+      function Get
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
-         Bean : Bean_Type);
+         Key : Integer)
+         return Bean_Type;
 
       function Get
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
@@ -35,12 +33,27 @@ package Meadowsweet.Persistence is
          SQL : String;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
          := GNATCOLL.SQL.Exec.No_Parameters)
-         return Util.Beans.Objects.Object_Array;
+         return Bean_Array;
 
       function Get_From_Table
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String)
-         return Util.Beans.Objects.Object_Array;
+         return Bean_Array;
+
+      procedure Insert
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
+         Bean : Bean_Type'Class);
+
+      procedure Update
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
+         Bean : Bean_Type'Class);
+
+      procedure Delete
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
+         Key : Integer);
 
    end Tables;
 

@@ -43,38 +43,30 @@ package body Meadowsweet.Persistence is
       procedure Insert
         (DB : Database_Connection;
          Table_Name : String;
-         Bean : Bean_Type)
+         Bean : Bean_Type'Class)
       is
          Column_Names : constant String_Array := Bean.Property_Names;
          Q : Unbounded_String := To_Unbounded_String ("INSERT INTO ")
            & Table_Name & '(';
-         Params_Length : Natural;
-
+         Params_Length : Natural := 0;
       begin
          for I in Column_Names'Range loop
-            Append (Q, Column_Names (I));
-            if I < Column_Names'Last then
-               Append (Q, ", ");
+            if Column_Names (I) /= Primary_Key then
+               if Params_Length > 0 then
+                  Append (Q, ", ");
+               end if;
+               Append (Q, Column_Names (I));
+               Params_Length := Params_Length + 1;
             end if;
          end loop;
-         Append (Q, "Values (");
-         for I in Column_Names'Range loop
-            Append (Q, '?');
-            if I < Column_Names'Last then
+         Append (Q, ") VALUES (");
+         for I in 1 .. Params_Length loop
+            Append (Q, DB.Parameter_String (I, ""));
+            if I < Params_Length then
                Append (Q, ", ");
             end if;
          end loop;
          Append (Q, ')');
-         if PK_Is_Auto_Generated then
-            Params_Length := 0;
-            for I in Column_Names'Range loop
-               if Column_Names (I) /= Primary_Key then
-                  Params_Length := Params_Length + 1;
-               end if;
-            end loop;
-         else
-            Params_Length := Column_Names'Length;
-         end if;
          declare
             P : constant Prepared_Statement :=
               GNATCOLL.SQL.Exec.Prepare (To_String (Q),
@@ -102,13 +94,12 @@ package body Meadowsweet.Persistence is
       procedure Update
         (DB : Database_Connection;
          Table_Name : String;
-         Bean : Bean_Type)
+         Bean : Bean_Type'Class)
       is
          Column_Names : constant String_Array := Bean.Property_Names;
          Q : Unbounded_String := To_Unbounded_String ("UPDATE ")
            & Table_Name & " SET ";
          Params : SQL_Parameters (1 .. Column_Names'Length);
-         Set_List_Empty : Boolean := True;
          J : Positive;
          Key_Value : Object;
       begin
@@ -119,19 +110,22 @@ package body Meadowsweet.Persistence is
          if Key_Value = Null_Object then
             raise Persistence_Error with "No key value provided";
          end if;
+         J := 1;
          for I in Column_Names'Range loop
             if Column_Names (I) /= Primary_Key then
-               if not Set_List_Empty then
+               if J > 1 then
                   Append (Q, ", ");
                end if;
                Append (Q, Column_Names (I));
-               Append (Q, " = ? ");
-               Set_List_Empty := False;
+               Append (Q, "=");
+               Append (Q, DB.Parameter_String (J, ""));
+               J := J + 1;
             end if;
          end loop;
-         Append (Q, "WHERE ");
+         Append (Q, " WHERE ");
          Append (Q, Primary_Key);
-         Append (Q, " = ?");
+         Append (Q, '=');
+         Append (Q, DB.Parameter_String (J, ""));
          J := 1;
          for I in Column_Names'Range loop
             if Column_Names (I) /= Primary_Key then
@@ -154,6 +148,24 @@ package body Meadowsweet.Persistence is
          end if;
       end Update;
 
+      procedure Delete
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
+         Key : Integer)
+      is
+         P : constant Prepared_Statement :=
+           GNATCOLL.SQL.Exec.Prepare
+             ("DELETE FROM " & Table_Name & " WHERE " & Primary_Key
+              & " =" & DB.Parameter_String (1, ""),
+              On_Server => True);
+      begin
+         Execute (DB, P, (1 => +Key));
+         Commit_Or_Rollback (DB);
+         if not Success (DB) then
+            raise Persistence_Error with Last_Error_Message (DB);
+         end if;
+      end Delete;
+
       function Get
         (DB : Database_Connection;
          SQL : String;
@@ -175,16 +187,24 @@ package body Meadowsweet.Persistence is
          raise Persistence_Error with "no object found";
       end Get;
 
-      type Bean_Type_Access is access Bean_Type;
+      function Get
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
+         Table_Name : String;
+         Key : Integer)
+         return Bean_Type is
+      begin
+         return Get (DB, "SELECT * FROM " & Table_Name & " WHERE "
+                     & Primary_Key & " =" & DB.Parameter_String (1, ""),
+                     (1 => +Key));
+      end Get;
 
       function Get
         (DB : Database_Connection;
          SQL : String;
          Params : SQL_Parameters := No_Parameters)
-         return Util.Beans.Objects.Object_Array
+         return Bean_Array
       is
          R : GNATCOLL.SQL.Exec.Direct_Cursor;
-         Bean : Bean_Type_Access;
          P : constant Prepared_Statement := GNATCOLL.SQL.Exec.Prepare
            (SQL,
             On_Server => True);
@@ -195,12 +215,11 @@ package body Meadowsweet.Persistence is
          end if;
          declare
             Row_Count : constant Natural := R.Rows_Count;
-            Result : Util.Beans.Objects.Object_Array (1 .. Row_Count);
+            Result : Bean_Array (1 .. Row_Count);
          begin
             for I in 1 .. Row_Count loop
-               Bean := new Bean_Type;
-               Bean.all := From_Cursor (R);
-               Result (I) := Util.Beans.Objects.To_Object (Bean, DYNAMIC);
+               Result (I) := From_Cursor (R);
+               Next (R);
             end loop;
             return Result;
          end;
@@ -209,7 +228,7 @@ package body Meadowsweet.Persistence is
       function Get_From_Table
         (DB : Database_Connection;
          Table_Name : String)
-         return Util.Beans.Objects.Object_Array is
+         return Bean_Array is
       begin
          return Get (DB, "SELECT * FROM " & Table_Name);
       end Get_From_Table;
