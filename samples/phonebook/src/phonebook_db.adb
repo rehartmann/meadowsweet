@@ -80,7 +80,10 @@ package body Phonebook_DB is
         := Tasking.Get_Task_Connection (DB_Descr);
       Result : Address_Entry_Vectors.Vector;
       Objects : constant Address_Persistence.Bean_Array
-        := Address_Persistence.Get_From_Table (DB, "addresses");
+        := Address_Persistence.Get_From_Table
+          (DB,
+           "addresses",
+           (1 => (To_Unbounded_String ("family_name"), Asc)));
    begin
       for I in Objects'Range loop
          Address_Entry_Vectors.Append (Result, Objects (I));

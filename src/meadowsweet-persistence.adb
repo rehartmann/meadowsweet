@@ -69,8 +69,7 @@ package body Meadowsweet.Persistence is
          Append (Q, ')');
          declare
             P : constant Prepared_Statement :=
-              GNATCOLL.SQL.Exec.Prepare (To_String (Q),
-                                         On_Server => True);
+              Prepare (To_String (Q), On_Server => True);
             Params : SQL_Parameters (1 .. Params_Length);
             J : Natural := 1;
          begin
@@ -174,15 +173,20 @@ package body Meadowsweet.Persistence is
       is
          R : GNATCOLL.SQL.Exec.Forward_Cursor;
          P : constant Prepared_Statement :=
-           GNATCOLL.SQL.Exec.Prepare (SQL,
-                                      On_Server => True);
+           GNATCOLL.SQL.Exec.Prepare (SQL, On_Server => True);
+         Result : Bean_Type;
       begin
          R.Fetch (DB, P, Params);
          if not Success (DB) then
             raise Persistence_Error with Last_Error_Message (DB);
          end if;
-         if GNATCOLL.SQL.Exec.Has_Row (R) then
-            return From_Cursor (R);
+         if Has_Row (R) then
+            Result := From_Cursor (R);
+            Next (R);
+            if Has_Row (R) then
+               raise Persistence_Error with "more than one object found";
+            end if;
+            return Result;
          end if;
          raise Persistence_Error with "no object found";
       end Get;
@@ -227,10 +231,51 @@ package body Meadowsweet.Persistence is
 
       function Get_From_Table
         (DB : Database_Connection;
-         Table_Name : String)
-         return Bean_Array is
+         Table_Name : String;
+         Order : Order_Spec := No_Order;
+         Limit : Integer := No_Limit;
+         Offset : Integer := -1)
+         return Bean_Array
+      is
+         Q : Unbounded_String := To_Unbounded_String
+           ("SELECT * FROM " & Table_Name);
+         Param_Length : Natural := 0;
       begin
-         return Get (DB, "SELECT * FROM " & Table_Name);
+         if Order'Length > 0 then
+            Append (Q, " ORDER BY ");
+            for I in Order'Range loop
+               Append (Q, Order (I).Column_Name);
+               if Order (I).Direction = Desc then
+                  Append (Q, " DESC");
+               end if;
+               if I < Order'Last then
+                  Append (Q, ", ");
+               end if;
+            end loop;
+         end if;
+         if Limit /= -1 then
+            Append (Q, " LIMIT ");
+            Param_Length := Param_Length + 1;
+            Append (Q, DB.Parameter_String (Param_Length, ""));
+         end if;
+         if Offset /= -1 then
+            Append (Q, " OFFSET ");
+            Param_Length := Param_Length + 1;
+            Append (Q, DB.Parameter_String (Param_Length, ""));
+         end if;
+         declare
+            Params : SQL_Parameters (1 .. Param_Length);
+            I : Positive := 1;
+         begin
+            if Limit /= -1 then
+               Params (I) := +Limit;
+               I := I + 1;
+            end if;
+            if Offset /= -1 then
+               Params (I) := +Offset;
+            end if;
+            return Get (DB, To_String (Q), Params);
+         end;
       end Get_From_Table;
 
    end Tables;
