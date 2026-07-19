@@ -10,7 +10,7 @@ website = ""
 tags = ["json", "web", "mvc"]
 
 [[depends-on]]
-gnatcoll = "^26.0.0"
+gnatcoll = "^25.0.0"
 
 [[depends-on]]
 meadowsweet = "*"
