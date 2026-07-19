@@ -17,12 +17,10 @@ servletada_aws = "^1.8.1"
 [[depends-on]]
 meadowsweet = "*"
 meadowsweet_jintp = "*"
-# meadowsweet_json = "*"
 
 [[pins]]
 meadowsweet = { path = "../.." }
 meadowsweet_jintp = { path = "../../../meadowsweet_jintp" }
-# meadowsweet_json = { path = "../../json" }
 
 [[depends-on]]
 gnatcoll_sql = "^25.0.0"
