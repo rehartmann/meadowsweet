@@ -1,9 +1,9 @@
 name = "phonebook"
 description = "Meadowsweet sample application"
-version = "0.1.0-dev"
+version = "0.1.0"
 
-authors = ["RenÃÂ© Hartmann"]
-maintainers = ["RenÃÂ© Hartmann <rhartmann@users.sourceforge.net>"]
+authors = ["René Hartmann"]
+maintainers = ["René Hartmann <rhartmann@users.sourceforge.net>"]
 maintainers-logins = ["rehartmann"]
 licenses = "Apache-2.0"
 website = ""
@@ -20,7 +20,6 @@ meadowsweet_jintp = "*"
 
 [[pins]]
 meadowsweet = { path = "../.." }
-meadowsweet_jintp = { path = "../../../meadowsweet_jintp" }
 
 [[depends-on]]
 gnatcoll_sql = "^25.0.0"

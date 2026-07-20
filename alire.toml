@@ -1,9 +1,9 @@
 name = "meadowsweet"
 description = "Simple Ada MVC web framework"
-version = "0.1.0-dev"
+version = "0.1.0"
 
-authors = ["RenÃ© Hartmann"]
-maintainers = ["RenÃ© Hartmann <rhartmann@users.sourceforge.net>"]
+authors = ["René Hartmann"]
+maintainers = ["René Hartmann <rhartmann@users.sourceforge.net>"]
 maintainers-logins = ["rehartmann"]
 licenses = "Apache-2.0"
 website = "https://github.com/rehartmann/meadowsweet"
