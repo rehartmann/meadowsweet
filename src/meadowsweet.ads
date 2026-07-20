@@ -46,8 +46,6 @@ package Meadowsweet is
       Response : in out Servlet.Responses.Response'Class)
    is abstract;
 
-   type Renderer_Access is access all Renderer'Class;
-
    type Action_Access is access procedure
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
