@@ -7,7 +7,7 @@ maintainers = ["René Hartmann <rhartmann@users.sourceforge.net>"]
 maintainers-logins = ["rehartmann"]
 licenses = "Apache-2.0"
 website = ""
-tags = ["mvc", "web"]
+tags = ["mvc", "web", "example"]
 
 executables = ["phonebook"]
 

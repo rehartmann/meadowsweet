@@ -1,10 +1,35 @@
+with Ada.Containers;
+with Ada.Containers.Vectors;
+
 package body Meadowsweet.Persistence is
 
    use GNATCOLL.SQL;
 
+   function Mapping (Property_Name : String;
+                     Property_Type : Util.Beans.Objects.Data_Type;
+                     Column : String)
+                     return Bean_Mapping is
+   begin
+      return (To_Unbounded_String (Property_Name),
+              Property_Type,
+              To_Unbounded_String (Column));
+   end Mapping;
+
+   function Create_Query
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String)
+         return Query
+   is
+      Q : constant Query := (DB => DB,
+                             Table_Name => To_Unbounded_String (Table_Name));
+   begin
+      return Q;
+   end Create_Query;
+
    package body Tables is
 
       use GNATCOLL.SQL.Exec;
+      use Util.Beans.Basic;
 
       function To_Parameter (Value : Object)
                              return SQL_Parameter is
@@ -277,6 +302,121 @@ package body Meadowsweet.Persistence is
             return Get (DB, To_String (Q), Params);
          end;
       end Get_From_Table;
+
+      function Find_Mapping (Mappings : Bean_Mappings;
+                             Property : String)
+                             return Natural is
+      begin
+         for I in Mappings'Range loop
+            if Mappings (I).Property_Name = Property then
+               return I;
+            end if;
+         end loop;
+         return 0;
+      end Find_Mapping;
+
+      procedure Set_Value (Dest : in out Bean_Type'Class;
+                           Index : Positive;
+                           Value : Util.Beans.Objects.Object) is
+      begin
+         Util.Beans.Basic.Bean'Class (Dest).Set_Value
+           (To_String (Dest.Property_Names (Index)), Value);
+      end Set_Value;
+
+      package Bean_Vectors is new Ada.Containers.Vectors
+        (Index_Type => Positive,
+         Element_Type => Bean_Type);
+
+      function Get
+        (Q : Query;
+         Mappings : Bean_Mappings;
+         Params : GNATCOLL.SQL.Exec.SQL_Parameters
+         := GNATCOLL.SQL.Exec.No_Parameters)
+         return Bean_Array
+      is
+
+         function To_SQL (B : Bean_Type'Class;
+                          Column_Count : out Positive)
+                       return String
+         is
+            SQL : Unbounded_String := To_Unbounded_String ("SELECT ");
+            Properties : constant String_Array := B.Property_Names;
+            Mapping_Index : Natural;
+         begin
+            if not (B in Util.Beans.Basic.Bean'Class)
+            then
+               raise Meadowsweet.Persistence.Persistence_Error
+               with "Bean_Type must be of type Util.Beans.Basic.Bean";
+            end if;
+            for I in Properties'Range loop
+               Mapping_Index := Find_Mapping
+                 (Mappings, To_String (B.Property_Names (I)));
+               if Mapping_Index = 0 then
+                  Append (SQL, Properties (I));
+               else
+                  Append (SQL, Mappings (Mapping_Index).Column);
+               end if;
+               if I < Properties'Last then
+                  Append (SQL, ", ");
+               end if;
+            end loop;
+            Append (SQL, " FROM ");
+            Append (SQL, Q.Table_Name);
+            Column_Count := Properties'Length;
+            return To_String (SQL);
+         end To_SQL;
+
+         function To_Object (B : Bean_Type'Class;
+                             R : Forward_Cursor;
+                             I : Positive)
+                             return Object
+         is
+            Mapping_Index : constant Natural := Find_Mapping
+              (Mappings, To_String (B.Property_Names (I)));
+            Typ : constant Util.Beans.Objects.Data_Type :=
+              (if Mapping_Index = 0 then TYPE_STRING
+               else Mappings (Mapping_Index).Property_Type);
+         begin
+            case Typ is
+            when TYPE_INTEGER =>
+               return To_Object
+                 (GNATCOLL.SQL.Exec.Bigint_Value
+                    (R, Field_Index'First + Field_Index (I - 1)));
+            when others =>
+               return To_Object
+                 (GNATCOLL.SQL.Exec.Value
+                    (R, Field_Index'First + Field_Index (I - 1)));
+            end case;
+         end To_Object;
+
+         B : Bean_Type;
+         Column_Count : Positive;
+         SQL : constant String := To_SQL (B, Column_Count);
+         R : GNATCOLL.SQL.Exec.Forward_Cursor;
+         P : constant Prepared_Statement :=
+           GNATCOLL.SQL.Exec.Prepare (SQL, On_Server => True);
+         Beans : Bean_Vectors.Vector;
+      begin
+         R.Fetch (Q.DB, P, Params);
+         if not Success (Q.DB) then
+            raise Persistence_Error with Last_Error_Message (Q.DB);
+         end if;
+         while Has_Row (R) loop
+            for I in 1 .. Column_Count loop
+               Set_Value (B, I, To_Object (B, R, I));
+            end loop;
+            Beans.Append (B);
+            Next (R);
+         end loop;
+         declare
+            Result : Bean_Array (1 .. Integer (Beans.Length));
+         begin
+            for I in Result'Range loop
+               Result (I) := Beans (I);
+            end loop;
+            return Result;
+         end;
+      end Get;
 
    end Tables;
 

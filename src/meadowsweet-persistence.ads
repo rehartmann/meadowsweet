@@ -16,6 +16,22 @@ package Meadowsweet.Persistence is
 
    No_Limit : constant Integer := -1;
 
+   type Query is limited private;
+
+   type Bean_Mapping is private;
+
+   type Bean_Mappings is array (Positive range <>) of Bean_Mapping;
+
+   function Mapping (Property_Name : String;
+                     Property_Type : Util.Beans.Objects.Data_Type;
+                     Column : String)
+                     return Bean_Mapping;
+
+   function Create_Query
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String)
+      return Query;
+
    generic
 
       type Bean_Type is new Inspectable_Bean with private;
@@ -62,6 +78,13 @@ package Meadowsweet.Persistence is
          Offset : Integer := -1)
          return Bean_Array;
 
+      function Get
+        (Q : Query;
+         Mappings : Bean_Mappings;
+         Params : GNATCOLL.SQL.Exec.SQL_Parameters
+         := GNATCOLL.SQL.Exec.No_Parameters)
+         return Bean_Array;
+
       --  Inserts a single record into the table Table_Name.
       procedure Insert
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
@@ -83,5 +106,18 @@ package Meadowsweet.Persistence is
    end Tables;
 
    Persistence_Error : exception;
+
+private
+
+   type Bean_Mapping is record
+      Property_Name : Unbounded_String;
+      Property_Type : Util.Beans.Objects.Data_Type;
+      Column : Unbounded_String;
+   end record;
+
+   type Query is record
+      DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : Unbounded_String;
+   end record;
 
 end Meadowsweet.Persistence;

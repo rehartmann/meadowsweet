@@ -4,7 +4,6 @@ with Ada.Containers.Vectors;
 with Ada.Strings;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
-with Ada.Strings.Unbounded.Hash;
 with Servlet.Core;
 with Servlet.Server;
 with Servlet.Requests;
@@ -22,8 +21,7 @@ package Meadowsweet is
 
    type String_Array is array (Positive range <>) of Unbounded_String;
 
-   type Inspectable_Bean is abstract new Util.Beans.Basic.Readonly_Bean
-   with null record;
+   type Inspectable_Bean is interface and Util.Beans.Basic.Readonly_Bean;
 
    type Inspectable_Bean_Access is access all Meadowsweet.Inspectable_Bean;
 
