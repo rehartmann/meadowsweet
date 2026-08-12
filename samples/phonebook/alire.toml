@@ -1,6 +1,6 @@
 name = "phonebook"
 description = "Meadowsweet sample application"
-version = "0.1.0"
+version = "0.2.0-dev"
 
 authors = ["René Hartmann"]
 maintainers = ["René Hartmann <rhartmann@users.sourceforge.net>"]
@@ -20,9 +20,6 @@ meadowsweet_jintp = "*"
 
 [[pins]]
 meadowsweet = { path = "../.." }
-
-[[depends-on]]
-gnatcoll_sql = "^25.0.0"
 
 [[depends-on]]
 gnatcoll_postgres = "^25.0.0"

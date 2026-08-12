@@ -55,9 +55,6 @@ package body Phonebook_DB is
       if Name = "phone_number" then
          return To_Object (From.Phone_Number);
       end if;
-      if Name = "given_name" then
-         return To_Object (From.Given_Name);
-      end if;
       if Name = "e_mail_address" then
          return To_Object (From.E_Mail_Address);
       end if;
