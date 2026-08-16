@@ -1,5 +1,6 @@
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
+with GNATCOLL.Refcount;
 
 package Meadowsweet.Persistence is
 
@@ -16,21 +17,30 @@ package Meadowsweet.Persistence is
 
    No_Limit : constant Integer := -1;
 
-   type Query is limited private;
+   type Query is private;
 
    type Bean_Mapping is private;
 
    type Bean_Mappings is array (Positive range <>) of Bean_Mapping;
 
+   type Expression_Impl is interface;
+
+   function To_SQL (Self : Expression_Impl;
+                    Mappings : Bean_Mappings)
+                    return String
+                    is abstract;
+
+   package Expression_Pointers is new GNATCOLL.Refcount.Shared_Pointers
+     (Expression_Impl'Class);
+
+   subtype Expression is Expression_Pointers.Ref;
+
+   Null_Expression : constant Expression;
+
    function Mapping (Property_Name : String;
                      Property_Type : Util.Beans.Objects.Data_Type;
                      Column : String)
                      return Bean_Mapping;
-
-   function Create_Query
-     (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Table_Name : String)
-      return Query;
 
    generic
 
@@ -118,6 +128,13 @@ private
    type Query is record
       DB : GNATCOLL.SQL.Exec.Database_Connection;
       Table_Name : Unbounded_String;
+      Where : Expression;
    end record;
+
+   Null_Expression : constant Expression := Expression_Pointers.Null_Ref;
+
+   function Find_Mapping (Mappings : Bean_Mappings;
+                          Property : String)
+                          return Natural;
 
 end Meadowsweet.Persistence;

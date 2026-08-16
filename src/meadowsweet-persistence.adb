@@ -15,16 +15,17 @@ package body Meadowsweet.Persistence is
               To_Unbounded_String (Column));
    end Mapping;
 
-   function Create_Query
-     (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Table_Name : String)
-         return Query
-   is
-      Q : constant Query := (DB => DB,
-                             Table_Name => To_Unbounded_String (Table_Name));
+   function Find_Mapping (Mappings : Bean_Mappings;
+                          Property : String)
+                                return Natural is
    begin
-      return Q;
-   end Create_Query;
+      for I in Mappings'Range loop
+         if Mappings (I).Property_Name = Property then
+            return I;
+         end if;
+      end loop;
+      return 0;
+   end Find_Mapping;
 
    package body Tables is
 
@@ -303,18 +304,6 @@ package body Meadowsweet.Persistence is
          end;
       end Get_From_Table;
 
-      function Find_Mapping (Mappings : Bean_Mappings;
-                             Property : String)
-                             return Natural is
-      begin
-         for I in Mappings'Range loop
-            if Mappings (I).Property_Name = Property then
-               return I;
-            end if;
-         end loop;
-         return 0;
-      end Find_Mapping;
-
       procedure Set_Value (Dest : in out Bean_Type'Class;
                            Index : Positive;
                            Value : Util.Beans.Objects.Object) is
@@ -362,6 +351,10 @@ package body Meadowsweet.Persistence is
             end loop;
             Append (SQL, " FROM ");
             Append (SQL, Q.Table_Name);
+            if not Q.Where.Is_Null then
+               Append (SQL, " WHERE ");
+               Append (SQL, Q.Where.Get.To_SQL (Mappings));
+            end if;
             Column_Count := Properties'Length;
             return To_String (SQL);
          end To_SQL;
