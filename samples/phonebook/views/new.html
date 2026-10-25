@@ -3,12 +3,19 @@
 <title>Enter new Entry</title>
 <link rel="stylesheet" type="text/css" href="/phonebook/style.css">
 <body>
-<form method="POST" action="/phonebook/entries" enctype="application/x-www-form-urlencoded">
-<p><label>Given name: <input name="given_name" value="{{ address.given_name }}"></label>
-<p><label>Family name: <input name="family_name" value="{{ address.family_name }}"></label>
-<p><label>Phone_Number: <input name="phone_number" value="{{ address.phone_number }}"></label>
-<p><label>E-Mail address: <input name="e_mail_address" value="{{
-address.e_mail_address }}"></label>
+<div class="panel_content">
+<form class="form" method="POST" action="/phonebook/entries" enctype="application/x-www-form-urlencoded">
+<label class="form_label">Given name</label>
+<input class="form_input" name="given_name" value="{{ address.given_name }}">
+<label class="form_label">Family name</label>
+<input class="form_input" name="family_name" value="{{ address.family_name }}">
+<label class="form_label">Phone number:</label>
+<input class="form_input" name="phone_number" value="{{ address.phone_number }}">
+<label class="form_label">E-Mail address:</label>
+<input class="form_input" name="e_mail_address" value="{{
+address.e_mail_address }}">
 <p><button>Submit</button>
 <p>{{ message }}
 </form>
+</div>
+
