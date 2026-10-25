@@ -1,16 +1,24 @@
+with Meadowsweet.Persistence;
+with Ada.Strings.Fixed;
+
 package body Meadowsweet.Persistence.Queries is
+
+   use Ada.Strings.Fixed;
 
    function Create_Query
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Table_Name : String;
-      Condition : Expression := Null_Expression)
+      Where : Expression := Null_Expression;
+      Joins : String_Array := (1 .. 0 => <>))
       return Query
    is
-      Q : constant Query := (DB => DB,
-                             Table_Name => To_Unbounded_String (Table_Name),
-                             Where => Condition);
+      Join_Vector : Name_Vectors.Vector;
    begin
-      return Q;
+      for I in Joins'Range loop
+         Join_Vector.Append (Joins (I));
+      end loop;
+      return (DB => DB,
+              Joins => Join_Vector,
+              Where => Where);
    end Create_Query;
 
    type String_Constant is new Expression_Impl with record
@@ -19,7 +27,7 @@ package body Meadowsweet.Persistence.Queries is
 
    overriding function To_SQL (Self : String_Constant;
                                Mappings : Bean_Mappings)
-                    return String is
+                               return String is
    begin
       return To_String (Self.Value);
    end To_SQL;
@@ -49,9 +57,9 @@ package body Meadowsweet.Persistence.Queries is
                    return String is
 
    begin
-      return Expression_Pointers.Get (Self.Left).To_SQL (Mappings)
+      return Expression_Pointers.Get (Self.Left.Ref).To_SQL (Mappings)
         & To_String (Self.Name)
-        & Expression_Pointers.Get (Self.Right).To_SQL (Mappings);
+        & Expression_Pointers.Get (Self.Right.Ref).To_SQL (Mappings);
    end To_SQL;
 
    type Binary_Operator_Access is access Binary_Operator;
@@ -64,13 +72,36 @@ package body Meadowsweet.Persistence.Queries is
                                Mappings : Bean_Mappings)
                                return String
    is
-      Mapping_Index : constant Natural := Find_Mapping
-                 (Mappings, To_String (Self.Name));
+      Mapping_Index : Natural;
+      Separator_Index : Natural := Index (Self.Name, ".", Ada.Strings.Backward);
+      Column_Prefix : Unbounded_String;
+      Last_Component : Unbounded_String;
    begin
-      if Mapping_Index = 0 then
-         return To_String (Self.Name);
+      if Separator_Index > 0 then
+         Mapping_Index := Find_Mapping
+           (Mappings, To_String (Self.Name)(1 .. Separator_Index - 1));
+         if Mapping_Index = 0 then
+            raise Persistence_Error with To_String (Self.Name) & " is not mapped";
+         end if;
+         if Mappings (Mapping_Index).Property_Type /= TYPE_BEAN then
+            raise Persistence_Error with To_String (Self.Name)(1 .. Separator_Index - 1)
+              & " is not mapped to a bean";
+         end if;
+         Column_Prefix := To_Unbounded_String ("T" & Trim (Mapping_Index'Image,
+                                               Ada.Strings.Left));
+         Last_Component := Unbounded_Slice (Self.Name, Separator_Index + 1,
+                                            Length (Self.Name));
+      else
+         Column_Prefix := To_Unbounded_String ("T0");
+         Last_Component := Self.Name;
       end if;
-      return To_String (Mappings (Mapping_Index).Column);
+      Mapping_Index := Find_Mapping
+                 (Mappings, To_String (Last_Component));
+      if Mapping_Index = 0 then
+         return To_String (Column_Prefix) & '.' & To_String (Last_Component);
+      end if;
+      return To_String (Column_Prefix) & '.'
+        & To_String (Mappings (Mapping_Index).Column);
    end To_SQL;
 
    type Property_Value_Access is access Property_Value;
@@ -91,74 +122,74 @@ package body Meadowsweet.Persistence.Queries is
    function "+" (Value : String)
                  return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       C : constant String_Constant_Access := new String_Constant'
         (Value => To_Unbounded_String ("'" & Value & "'"));
    begin
-      Expression_Pointers.Set (Ref, C.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, C.all);
+      return Result;
    end "+";
 
    function "+" (Value : Boolean)
                  return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       C : constant Boolean_Constant_Access := new Boolean_Constant'
         (Value => Value);
    begin
-      Expression_Pointers.Set (Ref, C.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, C.all);
+      return Result;
    end "+";
 
    function "=" (Left : Expression;
                  Right : Expression)
                  return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       Exp : constant Binary_Operator_Access := new Binary_Operator'
-        (Name => To_Unbounded_String ("="),
+        (Name => To_Unbounded_String (" = "),
          Left => Left,
          Right => Right);
    begin
-      Expression_Pointers.Set (Ref, Exp.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
    end "=";
 
    function "/=" (Left : Expression;
                   Right : Expression)
                   return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       Exp : constant Binary_Operator_Access := new Binary_Operator'
         (Name => To_Unbounded_String ("<>"),
          Left => Left,
          Right => Right);
    begin
-      Expression_Pointers.Set (Ref, Exp.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
    end "/=";
 
    function Get_Value (Name : String)
                        return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       Exp : constant Property_Value_Access := new Property_Value'
         (Name => To_Unbounded_String (Name));
    begin
-      Expression_Pointers.Set (Ref, Exp.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
    end Get_Value;
 
    function Parameter (DB : GNATCOLL.SQL.Exec.Database_Connection;
                        Position : Positive)
                        return Expression
    is
-      Ref : Expression;
+      Result : Expression;
       Exp : constant Query_Parameter_Access := new Query_Parameter'
         (S => To_Unbounded_String (DB.Parameter_String (Position, "")));
    begin
-      Expression_Pointers.Set (Ref, Exp.all);
-      return Ref;
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
    end Parameter;
 
 end Meadowsweet.Persistence.Queries;

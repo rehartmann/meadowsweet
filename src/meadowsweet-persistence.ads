@@ -23,24 +23,22 @@ package Meadowsweet.Persistence is
 
    type Bean_Mappings is array (Positive range <>) of Bean_Mapping;
 
-   type Expression_Impl is interface;
+   No_Mappings : constant Bean_Mappings;
 
-   function To_SQL (Self : Expression_Impl;
-                    Mappings : Bean_Mappings)
-                    return String
-                    is abstract;
-
-   package Expression_Pointers is new GNATCOLL.Refcount.Shared_Pointers
-     (Expression_Impl'Class);
-
-   subtype Expression is Expression_Pointers.Ref;
+   type Expression is private;
 
    Null_Expression : constant Expression;
 
+   type Bean_Factory is access function return access Inspectable_Bean'Class;
+
    function Mapping (Property_Name : String;
                      Property_Type : Util.Beans.Objects.Data_Type;
-                     Column : String)
+                     Column : String;
+                     Target_Table : String := "";
+                     Factory : Bean_Factory := null)
                      return Bean_Mapping;
+
+   type String_Array is array (Positive range <>) of Unbounded_String;
 
    generic
 
@@ -88,8 +86,18 @@ package Meadowsweet.Persistence is
          Offset : Integer := -1)
          return Bean_Array;
 
+      --  Reads records from table Root_Table and
+      --  returns them as an array of beans.
+      --  The bean must implement Util.Beans.Basic.Bean.
+      --  Child beans are read if the following conditions are met:
+      --  1. Mappings contains a mapping with a property type of TYPE-BEAN
+      --     and a factory function which allocates the child bean.
+      --  2. The query contains a join of the child property.
+      --  3. The parent of the child bean is derived from Composite_Bean
+      --     implementing Get_Child so that it returns the child bean.
       function Get
         (Q : Query;
+         Root_Table : String;
          Mappings : Bean_Mappings;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
          := GNATCOLL.SQL.Exec.No_Parameters)
@@ -99,7 +107,8 @@ package Meadowsweet.Persistence is
       procedure Insert
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
-         Bean : Bean_Type'Class);
+         Bean : Bean_Type'Class;
+         Mappings : Bean_Mappings := No_Mappings);
 
       --  Updates a single record using the key Primary_Key.
       procedure Update
@@ -123,15 +132,33 @@ private
       Property_Name : Unbounded_String;
       Property_Type : Util.Beans.Objects.Data_Type;
       Column : Unbounded_String;
+      Target_Table : Unbounded_String;
+      Factory : Bean_Factory;
+   end record;
+
+   No_Mappings : constant Bean_Mappings := (1 .. 0 => <>);
+
+   type Expression_Impl is interface;
+
+   function To_SQL (Self : Expression_Impl;
+                    Mappings : Bean_Mappings)
+                    return String
+                    is abstract;
+
+   package Expression_Pointers is new GNATCOLL.Refcount.Shared_Pointers
+     (Expression_Impl'Class);
+
+   type Expression is record
+      Ref : Expression_Pointers.Ref;
    end record;
 
    type Query is record
       DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Table_Name : Unbounded_String;
       Where : Expression;
+      Joins : Name_Vectors.Vector;
    end record;
 
-   Null_Expression : constant Expression := Expression_Pointers.Null_Ref;
+   Null_Expression : constant Expression := (Ref => Expression_Pointers.Null_Ref);
 
    function Find_Mapping (Mappings : Bean_Mappings;
                           Property : String)

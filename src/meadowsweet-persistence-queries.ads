@@ -23,8 +23,8 @@ package Meadowsweet.Persistence.Queries is
 
    function Create_Query
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Table_Name : String;
-      Condition : Expression := Null_Expression)
+      Where : Expression := Null_Expression;
+      Joins : String_Array := (1 .. 0 => <>))
       return Query;
 
 end Meadowsweet.Persistence.Queries;
