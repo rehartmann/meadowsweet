@@ -1,4 +1,3 @@
-with Meadowsweet.Persistence;
 with Ada.Strings.Fixed;
 
 package body Meadowsweet.Persistence.Queries is
@@ -73,7 +72,8 @@ package body Meadowsweet.Persistence.Queries is
                                return String
    is
       Mapping_Index : Natural;
-      Separator_Index : Natural := Index (Self.Name, ".", Ada.Strings.Backward);
+      Separator_Index : constant Natural
+        := Index (Self.Name, ".", Ada.Strings.Backward);
       Column_Prefix : Unbounded_String;
       Last_Component : Unbounded_String;
    begin

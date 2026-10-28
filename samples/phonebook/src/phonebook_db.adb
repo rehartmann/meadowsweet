@@ -10,6 +10,11 @@ package body Phonebook_DB is
    use GNATCOLL.SQL.Exec;
    use Meadowsweet.Persistence;
 
+   Mappings : constant Bean_Mappings
+     := (1 => Primary_Key_Mapping (
+         Property_Name => "id",
+         Is_Auto_Generated => True));
+
    function Address_From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
                                  return Address_Entry is
       Result : Address_Entry;
@@ -24,9 +29,7 @@ package body Phonebook_DB is
 
    package Address_Persistence is new Tables
      (Bean_Type => Address_Entry,
-      From_Cursor => Address_From_Cursor,
-      Primary_Key => "id",
-      PK_Is_Auto_Generated => True);
+      From_Cursor => Address_From_Cursor);
 
    DB_Descr : constant GNATCOLL.SQL.Exec.Database_Description
      := GNATCOLL.SQL.Postgres.Setup
@@ -69,7 +72,7 @@ package body Phonebook_DB is
         := Tasking.Get_Task_Connection (DB_Descr);
    begin
       return Address_Persistence.Get
-        (DB, "addresses", Id);
+        (DB, "addresses", Mappings, Id);
    end Get;
 
    function Get_All return Address_Entry_Vectors.Vector is
@@ -92,21 +95,21 @@ package body Phonebook_DB is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
    begin
-      Address_Persistence.Insert (DB, "addresses", E);
+      Address_Persistence.Insert (DB, "addresses", Mappings, E);
    end Insert;
 
    procedure Update (E : Address_Entry'Class) is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
    begin
-      Address_Persistence.Update (DB, "addresses", E);
+      Address_Persistence.Update (DB, "addresses", Mappings, E);
    end Update;
 
    procedure Delete (Id : Positive) is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
    begin
-      Address_Persistence.Delete (DB, "addresses", Id);
+      Address_Persistence.Delete (DB, "addresses", Mappings, Id);
    end Delete;
 
 end Phonebook_DB;
