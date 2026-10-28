@@ -594,7 +594,8 @@ package body Meadowsweet.Persistence is
                Append (SQL, Mappings (Mapping_Index).Column);
                Append (SQL, " = T");
                Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image, Ada.Strings.Left));
-               Append (SQL, ".ID");  -- !!
+               Append (SQL, ".");
+               Append (SQL, Mappings (Mapping_Index).Target_Primary_Key);
             end loop;
             if not Q.Where.Ref.Is_Null then
                Append (SQL, " WHERE ");
