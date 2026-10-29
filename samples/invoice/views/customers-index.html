@@ -1,0 +1,23 @@
+<html>
+<head>
+<title>Index</title>
+<link rel="stylesheet" type="text/css" href="/invoice/style.css">
+<body>
+<h2>Entries</h2>
+<div class="panel_content">
+<table>
+<tr>
+<th>Id
+<th>Name
+{% for customer in customers %}
+<tr>
+<td>{{ customer.id }}
+<td>{{ customer.name }}
+<td><a href="/invoice/customers/{{ customer.id }}">Show</a>
+<td><a href="/invoice/customers/{{ customer.id }}?_method=DELETE">Delete</a>
+{% endfor %}
+</table>
+</div>
+<a href="/invoice/customers/new">Add</a>
+<p><a href="/invoice/invoices">Invoices</a>
+</html>

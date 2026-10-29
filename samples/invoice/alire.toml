@@ -1,0 +1,27 @@
+name = "invoice"
+description = "Meadowsweet sample application"
+version = "0.1.0-dev"
+
+authors = ["René Hartmann"]
+maintainers = ["René Hartmann <rhartmann@users.sourceforge.net>"]
+maintainers-logins = ["rehartmann"]
+licenses = "Apache-2.0"
+website = ""
+tags = ["mvc", "web", "example"]
+
+executables = ["invoice_main"]
+
+[[depends-on]]
+servletada_aws = "^1.8.2"
+
+[[depends-on]]
+gnatcoll_postgres = "^25.0.0"
+
+[[depends-on]]
+meadowsweet = "~0.1.0"
+
+[[depends-on]]
+meadowsweet_jintp = "~0.1.0"
+
+[[pins]]
+meadowsweet = { path = "../.." }

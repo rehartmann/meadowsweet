@@ -1,0 +1,48 @@
+body { font-family: sans-serif }
+
+input {
+  display: inline-block;
+  appearance: auto;
+  -moz-default-appearance: textfield;
+  /* The sum of border and padding on block-start and block-end
+     must be the same here, for buttons, and for <select> */
+  padding-block: 1px;
+  padding-inline: 2px;
+  border: 2px inset ButtonBorder;
+  background-color: Field;
+  color: FieldText;
+  font: -moz-field;
+  text-rendering: optimizeLegibility;
+  cursor: text;
+  resize: none !important;
+}
+
+.form {
+  box-sizing: border-box;
+}
+
+.panel_content {
+  padding: 20px;
+  background-color: white;
+  z-index: 10;
+  position: relative;
+}
+
+.form_label {
+  display: block;
+  color: rgb(61, 61, 61);
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.form_input {
+  border-radius: 3px;
+  background-color: rgb(242, 242, 242);
+  box-shadow: rgb(214, 214, 214) 0px 2px 2px;
+  border: medium;
+  padding: 5px;
+  margin-bottom: 15px;
+  width: 250px;
+  box-sizing: border-box;
+  position: relative;
+}
