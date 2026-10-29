@@ -1,6 +1,6 @@
 # Meadowsweet
 
-Meadowsweet allows the creation of web application using an action-oriented
+Meadowsweet allows the creation of web applications using an action-oriented
 pattern. It is implemented on top of Ada Servlet.
 
 This repository contains a simple example CRUD application in the

@@ -4,7 +4,6 @@ with Ada.Containers.Vectors;
 with Ada.Text_IO;
 with Ada.Strings;
 with Ada.Strings.Fixed;
-with Meadowsweet.Persistence;
 with Util.Beans.Objects;
 
 package body Meadowsweet.Persistence is
@@ -203,7 +202,7 @@ package body Meadowsweet.Persistence is
          Params : SQL_Parameters (1 .. Property_Names'Length);
          J : Positive;
          Key_Value : Object;
-         Primary_Key : String := Get_Primary_Key (Mappings);
+         Primary_Key : constant String := Get_Primary_Key (Mappings);
          Mapping_Index : Natural;
       begin
          if Primary_Key = "" then
@@ -261,7 +260,7 @@ package body Meadowsweet.Persistence is
          Mappings : Bean_Mappings;
          Key : Integer)
       is
-         Primary_Key : String := Get_Primary_Key (Mappings);
+         Primary_Key : constant String := Get_Primary_Key (Mappings);
          P : Prepared_Statement;
       begin
          if Primary_Key = "" then
@@ -311,7 +310,7 @@ package body Meadowsweet.Persistence is
          Key : Integer)
          return Bean_Type
       is
-         Primary_Key : String := Get_Primary_Key (Mappings);
+         Primary_Key : constant String := Get_Primary_Key (Mappings);
       begin
          return Get (DB, "SELECT * FROM " & Table_Name & " WHERE "
                      & Primary_Key & " =" & DB.Parameter_String (1, ""),
@@ -405,20 +404,52 @@ package body Meadowsweet.Persistence is
 
       type Bean_Access is access all Inspectable_Bean'Class;
 
+      function Get_Bean_Deep
+        (B : in out Composite_Bean'Class;
+         Name : String)
+         return access Readonly_Bean'Class
+      is
+         Bean_Ptr : access Readonly_Bean'Class;
+         Composite_Bean_Ptr : access Composite_Bean'Class := B'Access;
+         Separator_Index : Natural;
+         Remaining_Name : String := Name (Name'Range);
+      begin
+         loop
+            Separator_Index := Index (Remaining_Name, ".");
+            if Separator_Index = 0 then
+               return Composite_Bean_Ptr.all.Get_Bean (Remaining_Name);
+            end if;
+            Bean_Ptr := Composite_Bean_Ptr.all.Get_Bean
+              (Remaining_Name (Remaining_Name'First .. Separator_Index - 1));
+            if Bean_Ptr = null then
+               return null;
+            end if;
+            Remaining_Name := Remaining_Name (Separator_Index + 1 .. Remaining_Name'Last);
+            if not (Bean_Ptr.all in Composite_Bean'Class) then
+               return null;
+            end if;
+            Composite_Bean_Ptr := Composite_Bean'Class (Bean_Ptr.all)'Access;
+         end loop;
+      end Get_Bean_Deep;
+
       function Get_Deep
         (B : in out Readonly_Bean'Class;
          Name : String)
          return Object
       is
-         Result : Object;
+         Bean_Ptr : access Readonly_Bean'Class;
+         Separator_Index : constant Natural := Index (Name, ".");
       begin
-         if B in Composite_Bean'Class then
-            Result := Composite_Bean'Class (B).Get_Child (Name);
-            if Get_Type (Result) /= TYPE_NULL then
-               return Result;
+         if Separator_Index /= 0 then
+            if not (B in Composite_Bean'Class) then
+               return Null_Object;
             end if;
+            Bean_Ptr := Get_Bean_Deep (Composite_Bean'Class (B),
+                                  Name (Name'First .. Separator_Index - 1));
+            return Bean_Ptr.Get_Value (Name (Separator_Index + 1 .. Name'Last));
+         else
+            return B.Get_Value (Name);
          end if;
-         return B.Get_Value (Name);
       end Get_Deep;
 
       function Is_Scalar (B : Readonly_Bean'Class;
@@ -630,26 +661,32 @@ package body Meadowsweet.Persistence is
          end To_Object;
 
          procedure Set_Deep
-           (B : in out Bean_Type'Class;
+           (B : in out Bean'Class;
             Name : String;
-            Obj : Object)
+            Value : Object)
          is
-            Pos : constant Natural := Index (Name, ".", Name'First);
-            Parent : Object;
-            Parent_Bean : Bean_Access;
+            Bean_Ptr : access Readonly_Bean'Class;
+            Separator_Index : constant Natural := Index (Name, ".");
          begin
-            if Pos > 0 then
-               Parent := Get_Deep (B, Name (Name'First .. Pos - 1));
-               Parent_Bean := Bean_Access (To_Bean (Parent));
-               Util.Beans.Basic.Bean'Class (Parent_Bean.all).Set_Value
-                 (Name (Pos + 1 .. Name'Last), Obj);
+            if Separator_Index /= 0 then
+               if not (B in Composite_Bean'Class) then
+                  raise No_Value;
+               end if;
+               Bean_Ptr := Get_Bean_Deep
+                 (Composite_Bean'Class (B),
+                  Name (Name'First .. Separator_Index - 1));
+               if not (Bean_Ptr.all in Bean'Class) then
+                  raise No_Value;
+               end if;
+               Bean'Class (Bean_Ptr.all).Set_Value
+                 (Name (Separator_Index + 1 .. Name'Last), Value);
             else
-               Util.Beans.Basic.Bean'Class (B).Set_Value (Name, Obj);
+               B.Set_Value (Name, Value);
             end if;
          end Set_Deep;
 
          procedure Set_Deep
-           (B : in out Bean_Type'Class;
+           (B : in out Bean'Class;
             Name : String;
             Value : Bean_Access)
          is
@@ -672,7 +709,12 @@ package body Meadowsweet.Persistence is
                   Joined : constant access Inspectable_Bean'Class
                     := Mappings (Mapping_Index).Factory.all;
                begin
-                  Set_Deep (B, To_String (Q.Joins (I)), Bean_Access (Joined));
+                  if not (B in Bean'Class) then
+                     raise Persistence_Error
+                       with "Bean does not implement Util.Beans.Basic.Bean";
+                  end if;
+                  Set_Deep (Util.Beans.Basic.Bean'Class (B),
+                            To_String (Q.Joins (I)), Bean_Access (Joined));
                end;
             end loop;
          end Create_Children;
@@ -685,7 +727,8 @@ package body Meadowsweet.Persistence is
             Create_Children (B, Q, Mappings);
             for I in 1 .. Length (Property_Names)
             loop
-               Set_Deep (B, Property_Names (Positive (I)),
+               Set_Deep (Util.Beans.Basic.Bean'Class (Bean_Type'Class (B)),
+                         Property_Names (Positive (I)),
                          To_Object (R, Positive (I),
                            Property_Names (Positive (I))));
             end loop;

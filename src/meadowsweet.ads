@@ -31,12 +31,16 @@ package Meadowsweet is
    type Composite_Bean is abstract new Util.Beans.Basic.Bean and Inspectable_Bean
    with null record;
 
-   overriding function Get_Value (From : Composite_Bean;
-                       Name : String) return Object is abstract;
+   overriding function Get_Value
+     (From : Composite_Bean;
+      Name : String)
+      return Object is abstract;
 
-   -- Returns a reference to a child object instead of a copy
-   function Get_Child (From : in out Composite_Bean;
-                       Name : String) return Object;
+   -- Returns a reference to a child bean instead of a copy
+   function Get_Bean
+     (From : in out Composite_Bean;
+      Name : String)
+      return access Inspectable_Bean'Class is abstract;
 
    --  Returns the value of the path parameter with the given name.
    --  A path parameter is delimited by curly brackets, e.g. {id}.

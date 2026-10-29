@@ -7,11 +7,13 @@ package body Meadowsweet is
 
    Servlet_Name : constant String := "meadowsweet-dispatcher";
 
-   function Get_Child (From : in out Composite_Bean;
-                       Name : String) return Util.Beans.Objects.Object is
-   begin
-      return Null_Object;
-   end Get_Child;
+   --  function Get_Bean
+   --    (From : in out Composite_Bean;
+   --     Name : String)
+   --     return access Inspectable_Bean is
+   --  begin
+   --     return null;
+   --  end Get_Bean;
 
    procedure Initialize
      (Context : aliased in out Web_Context;
