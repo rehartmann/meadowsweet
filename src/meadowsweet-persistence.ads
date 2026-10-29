@@ -53,8 +53,8 @@ package Meadowsweet.Persistence is
    generic
 
       type Bean_Type is new Inspectable_Bean with private;
-      with function From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
-                                 return Bean_Type;
+      --  with function From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+      --                             return Bean_Type;
    package Tables is
 
       type Bean_Array is array (Positive range <>) of Bean_Type;
@@ -64,7 +64,10 @@ package Meadowsweet.Persistence is
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
          Mappings : Bean_Mappings;
-         Key : Integer)
+         Key : Integer;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Type;
 
       --  Reads a single record using an SQL query and parameters.
@@ -72,7 +75,10 @@ package Meadowsweet.Persistence is
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          SQL : String;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
-         := GNATCOLL.SQL.Exec.No_Parameters)
+         := GNATCOLL.SQL.Exec.No_Parameters;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Type;
 
       --  Reads records using an SQL query and parameters and
@@ -81,7 +87,10 @@ package Meadowsweet.Persistence is
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          SQL : String;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
-         := GNATCOLL.SQL.Exec.No_Parameters)
+         := GNATCOLL.SQL.Exec.No_Parameters;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Array;
 
       --  Reads records from table Table_Name and
@@ -89,6 +98,9 @@ package Meadowsweet.Persistence is
       function Get_From_Table
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type;
          Order : Order_Spec := No_Order;
          Limit : Integer := No_Limit;
          Offset : Integer := -1)

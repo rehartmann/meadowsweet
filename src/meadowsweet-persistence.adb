@@ -280,7 +280,10 @@ package body Meadowsweet.Persistence is
       function Get
         (DB : Database_Connection;
          SQL : String;
-         Params : SQL_Parameters := No_Parameters)
+         Params : SQL_Parameters := No_Parameters;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Type
       is
          R : GNATCOLL.SQL.Exec.Forward_Cursor;
@@ -307,20 +310,27 @@ package body Meadowsweet.Persistence is
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
          Mappings : Bean_Mappings;
-         Key : Integer)
+         Key : Integer;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Type
       is
          Primary_Key : constant String := Get_Primary_Key (Mappings);
       begin
          return Get (DB, "SELECT * FROM " & Table_Name & " WHERE "
-                     & Primary_Key & " =" & DB.Parameter_String (1, ""),
-                     (1 => +Key));
+                          & Primary_Key & " =" & DB.Parameter_String (1, ""),
+                     (1 => +Key),
+                     From_Cursor);
       end Get;
 
       function Get
         (DB : Database_Connection;
          SQL : String;
-         Params : SQL_Parameters := No_Parameters)
+         Params : SQL_Parameters := No_Parameters;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type)
          return Bean_Array
       is
          R : GNATCOLL.SQL.Exec.Direct_Cursor;
@@ -347,6 +357,9 @@ package body Meadowsweet.Persistence is
       function Get_From_Table
         (DB : Database_Connection;
          Table_Name : String;
+         From_Cursor : not null access function
+           (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
+           return Bean_Type;
          Order : Order_Spec := No_Order;
          Limit : Integer := No_Limit;
          Offset : Integer := -1)
@@ -389,7 +402,7 @@ package body Meadowsweet.Persistence is
             if Offset /= -1 then
                Params (I) := +Offset;
             end if;
-            return Get (DB, To_String (Q), Params);
+            return Get (DB, To_String (Q), Params, From_Cursor);
          end;
       end Get_From_Table;
 

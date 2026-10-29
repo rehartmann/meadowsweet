@@ -28,8 +28,7 @@ package body Phonebook_DB is
    end Address_From_Cursor;
 
    package Address_Persistence is new Tables
-     (Bean_Type => Address_Entry,
-      From_Cursor => Address_From_Cursor);
+     (Bean_Type => Address_Entry);
 
    DB_Descr : constant GNATCOLL.SQL.Exec.Database_Description
      := GNATCOLL.SQL.Postgres.Setup
@@ -72,7 +71,7 @@ package body Phonebook_DB is
         := Tasking.Get_Task_Connection (DB_Descr);
    begin
       return Address_Persistence.Get
-        (DB, "addresses", Mappings, Id);
+        (DB, "addresses", Mappings, Id, Address_From_Cursor'Access);
    end Get;
 
    function Get_All return Address_Entry_Vectors.Vector is
@@ -81,9 +80,10 @@ package body Phonebook_DB is
       Result : Address_Entry_Vectors.Vector;
       Objects : constant Address_Persistence.Bean_Array
         := Address_Persistence.Get_From_Table
-          (DB,
-           "addresses",
-           (1 => (To_Unbounded_String ("family_name"), Asc)));
+          (DB => DB,
+           Table_Name => "addresses",
+           From_Cursor => Address_From_Cursor'Access,
+           Order => (1 => (To_Unbounded_String ("family_name"), Asc)));
    begin
       for I in Objects'Range loop
          Address_Entry_Vectors.Append (Result, Objects (I));

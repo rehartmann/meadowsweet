@@ -5,6 +5,7 @@
 <body>
 <h2>Entries</h2>
 <table>
+<div class="panel_content">
 <tr>
 <th>Given Name
 <th>Family Name
@@ -21,6 +22,8 @@
 <td><a href="/phonebook/entries/{{ entry.id }}?_method=DELETE">Delete</a>
 {% endfor %}
 </table>
+</div>
 
 <a href="/phonebook/entries/new">Add</a>
+
 </html>
