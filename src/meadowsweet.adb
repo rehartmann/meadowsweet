@@ -217,7 +217,8 @@ package body Meadowsweet is
       return From.Attributes (Name);
    end Get_Value;
 
-   overriding function Property_Names (From : Dynamic_Bean)
+   overriding
+   function Property_Names (From : Dynamic_Bean)
                                        return String_Array
    is
       Names : String_Array (1 .. Integer (From.Attributes.Length));
@@ -230,6 +231,7 @@ package body Meadowsweet is
       return Names;
    end Property_Names;
 
+   overriding
    procedure Set_Value (This : in out Dynamic_Bean;
                         Name : String;
                         Value : Util.Beans.Objects.Object)
@@ -237,5 +239,64 @@ package body Meadowsweet is
    begin
       This.Attributes.Include (Name, Value);
    end Set_Value;
+
+   function To_Object (Source : Util.Beans.Objects.Vectors.Vector_Bean)
+                       return Object
+   is
+      Objects : Object_Array (1 .. Integer (Source.Length));
+   begin
+      for I in Objects'Range loop
+         Objects (I) := Source (I);
+      end loop;
+      return To_Object (Objects);
+   end To_Object;
+
+   function Get_Bean_Deep
+     (B : in out Composite_Bean'Class;
+      Name : String)
+     return access Util.Beans.Basic.Readonly_Bean'Class
+   is
+      Bean_Ptr : access Util.Beans.Basic.Readonly_Bean'Class;
+      Composite_Bean_Ptr : access Composite_Bean'Class := B'Access;
+      Separator_Index : Natural;
+      Remaining_Name : String := Name (Name'Range);
+   begin
+      loop
+         Separator_Index := Index (Remaining_Name, ".");
+         if Separator_Index = 0 then
+            return Composite_Bean_Ptr.all.Get_Bean (Remaining_Name);
+         end if;
+         Bean_Ptr := Composite_Bean_Ptr.all.Get_Bean
+           (Remaining_Name (Remaining_Name'First .. Separator_Index - 1));
+         if Bean_Ptr = null then
+            return null;
+         end if;
+         Remaining_Name := Remaining_Name (Separator_Index + 1 .. Remaining_Name'Last);
+         if not (Bean_Ptr.all in Composite_Bean'Class) then
+            return null;
+         end if;
+         Composite_Bean_Ptr := Composite_Bean'Class (Bean_Ptr.all)'Access;
+      end loop;
+   end Get_Bean_Deep;
+
+   function Get_Deep
+     (B : in out Util.Beans.Basic.Readonly_Bean'Class;
+      Name : String)
+      return Object
+   is
+      Bean_Ptr : access Util.Beans.Basic.Readonly_Bean'Class;
+      Separator_Index : constant Natural := Index (Name, ".");
+   begin
+      if Separator_Index /= 0 then
+         if not (B in Composite_Bean'Class) then
+            return Null_Object;
+         end if;
+         Bean_Ptr := Get_Bean_Deep (Composite_Bean'Class (B),
+                                    Name (Name'First .. Separator_Index - 1));
+         return Bean_Ptr.Get_Value (Name (Separator_Index + 1 .. Name'Last));
+      else
+         return B.Get_Value (Name);
+      end if;
+   end Get_Deep;
 
 end Meadowsweet;

@@ -1,3 +1,4 @@
+with Ada.Containers.Indefinite_Vectors;
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
 with GNATCOLL.Refcount;
@@ -46,15 +47,21 @@ package Meadowsweet.Persistence is
       Property_Type : Util.Beans.Objects.Data_Type := TYPE_INTEGER;
       Column : String := "";
       Is_Auto_Generated : Boolean)
-      return Bean_Mapping;
+     return Bean_Mapping;
+
+   function To_Many_Mapping
+     (Property_Name : String;
+      Target_Table : String;
+      Target_Column : String;
+      Factory : Bean_Factory)
+     return Bean_Mapping;
 
    type String_Array is array (Positive range <>) of Unbounded_String;
 
    generic
 
       type Bean_Type is new Inspectable_Bean with private;
-      --  with function From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
-      --                             return Bean_Type;
+
    package Tables is
 
       type Bean_Array is array (Positive range <>) of Bean_Type;
@@ -159,6 +166,7 @@ private
       Target_Table : Unbounded_String := Null_Unbounded_String;
       Factory : Bean_Factory := null;
       Target_Primary_Key : Unbounded_String := Null_Unbounded_String;
+      Target_Column : Unbounded_String := Null_Unbounded_String;
    end record;
 
    No_Mappings : constant Bean_Mappings := (1 .. 0 => <>);
@@ -179,6 +187,7 @@ private
 
    type Query is record
       DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Distinct : Boolean;
       Where : Expression;
       Joins : Name_Vectors.Vector;
    end record;
@@ -189,5 +198,21 @@ private
    function Find_Mapping (Mappings : Bean_Mappings;
                           Property : String)
                           return Natural;
+
+   package String_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Index_Type => Positive,
+      Element_Type => String);
+
+   function Scalar_Properties
+     (B : Inspectable_Bean'Class)
+         return String_Vectors.Vector;
+
+   function Get_Primary_Key (Mappings : Bean_Mappings;
+                             Bean_Name : String := "")
+                                   return String;
+
+   function Is_Scalar (B : Util.Beans.Basic.Readonly_Bean'Class;
+                       Name : String)
+                          return Boolean;
 
 end Meadowsweet.Persistence;

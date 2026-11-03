@@ -1,16 +1,18 @@
 with Ada.Containers;
-with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
-with Ada.Text_IO;
 with Ada.Strings;
 with Ada.Strings.Fixed;
+with Ada.Text_IO;
 with Util.Beans.Objects;
+with Util.Beans.Objects.Vectors;
+with Meadowsweet.Persistence.Queries;
 
 package body Meadowsweet.Persistence is
 
    use GNATCOLL.SQL;
    use GNATCOLL.SQL.Exec;
    use Ada.Strings.Fixed;
+   use Util.Beans.Objects.Vectors;
 
    Null_Mapping : Bean_Mapping;
 
@@ -24,14 +26,15 @@ package body Meadowsweet.Persistence is
                      Target_Primary_Key : String := "")
                      return Bean_Mapping is
    begin
-      return (To_Unbounded_String (Property_Name),
-              Property_Type,
-              To_Unbounded_String (Column),
-              Is_Primary_Key,
-              Is_Auto_Generated,
-              To_Unbounded_String (Target_Table),
-              Factory,
-              To_Unbounded_String (Target_Primary_Key));
+      return (Property_Name => To_Unbounded_String (Property_Name),
+              Property_Type => Property_Type,
+              Column => To_Unbounded_String (Column),
+              Is_Primary_Key => Is_Primary_Key,
+              Is_Auto_Generated => Is_Auto_Generated,
+              Target_Table => To_Unbounded_String (Target_Table),
+              Factory => Factory,
+              Target_Primary_Key => To_Unbounded_String (Target_Primary_Key),
+              Target_Column => Null_Unbounded_String);
    end Mapping;
 
    function Primary_Key_Mapping
@@ -50,8 +53,27 @@ package body Meadowsweet.Persistence is
               Is_Auto_Generated => Is_Auto_Generated,
               Target_Table => Null_Unbounded_String,
               Factory => null,
-              Target_Primary_Key => Null_Unbounded_String);
+              Target_Primary_Key => Null_Unbounded_String,
+              Target_Column => Null_Unbounded_String);
    end Primary_Key_Mapping;
+
+   function To_Many_Mapping
+     (Property_Name : String;
+      Target_Table : String;
+      Target_Column : String;
+      Factory : Bean_Factory)
+     return Bean_Mapping is
+   begin
+      return (Property_Name => To_Unbounded_String (Property_Name),
+              Property_Type => TYPE_BEAN,
+              Column => Null_Unbounded_String,
+              Is_Primary_Key => False,
+              Is_Auto_Generated => False,
+              Target_Table => To_Unbounded_String (Target_Table),
+              Factory => Factory,
+              Target_Primary_Key => Null_Unbounded_String,
+              Target_Column => To_Unbounded_String (Target_Column));
+   end To_Many_Mapping;
 
    function Find_Mapping (Mappings : Bean_Mappings;
                           Property : String)
@@ -106,6 +128,68 @@ package body Meadowsweet.Persistence is
             return Null_Parameter;
       end case;
    end To_Parameter;
+
+   function Is_Scalar (B : Util.Beans.Basic.Readonly_Bean'Class;
+                       Name : String)
+                       return Boolean is
+      Typ : constant Data_Type := Get_Type (B.Get_Value (Name));
+   begin
+      return Typ /= TYPE_NULL and then Typ /= TYPE_ARRAY and then Typ /= TYPE_BEAN;
+   end Is_Scalar;
+
+   type Bean_Access is access all Inspectable_Bean'Class;
+
+   function Scalar_Properties
+     (B : in out Inspectable_Bean'Class;
+      Q : Query;
+      Mappings : Bean_Mappings)
+      return String_Vectors.Vector
+   is
+      Result : String_Vectors.Vector;
+      Joined : Util.Beans.Objects.Object;
+      Joined_Bean : access Inspectable_Bean'Class;
+      Mapping_Index : Natural;
+   begin
+      Result := Scalar_Properties (B);
+      for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
+         Joined := Get_Deep (B, To_String (Q.Joins (I)));
+         Joined_Bean := Inspectable_Bean_Access (To_Bean (Joined));
+         if Joined_Bean = null then
+            --  Bean is not there, try to create one using the factory
+            --  in the mappings
+            Mapping_Index := Find_Mapping (Mappings, To_String (Q.Joins (I)));
+            if Mapping_Index = 0 then
+               raise Persistence_Error
+                 with "joined property " & To_String (Q.Joins (I))
+                 & " is not mapped";
+            end if;
+            if Mappings (Mapping_Index).Factory = null then
+               raise Persistence_Error
+                 with "cannot determine properties of joined property "
+                 & To_String (Q.Joins (I)) & ", no factory";
+            end if;
+            Joined_Bean := Mappings (Mapping_Index).Factory.all;
+         end if;
+         declare
+            Names : constant String_Vectors.Vector
+              := Scalar_Properties (Joined_Bean.all);
+         begin
+            for J in 1 .. String_Vectors.Length (Names) loop
+               if Is_Scalar (Joined_Bean.all, Names (Positive (J)))
+               then
+                  declare
+                     Name : constant String := To_String (Q.Joins (I)) & "."
+                       & Names (Positive (J));
+                  begin
+                     Result.Append (Name);
+                  end;
+               end if;
+            end loop;
+         end;
+      end loop;
+      --  !! Free Joined index if created by factory
+      return Result;
+   end Scalar_Properties;
 
    package body Tables is
 
@@ -176,19 +260,6 @@ package body Meadowsweet.Persistence is
             raise Persistence_Error with Last_Error_Message (DB);
          end if;
       end Insert;
-
-      function Get_Primary_Key (Mappings : Bean_Mappings)
-                                return String is
-      begin
-         for I in Mappings'Range loop
-            if Index (Mappings (I).Property_Name, ".") = 0
-              and then Mappings (I).Is_Primary_Key
-            then
-               return To_String (Mappings (I).Property_Name);
-            end if;
-         end loop;
-         return "";
-      end Get_Primary_Key;
 
       procedure Update
         (DB : Database_Connection;
@@ -407,143 +478,8 @@ package body Meadowsweet.Persistence is
       end Get_From_Table;
 
       package Bean_Vectors is new Ada.Containers.Vectors
-        (Index_Type => Positive,
-         Element_Type => Bean_Type);
-
-      package String_Vectors is new Ada.Containers.Indefinite_Vectors
-        (Index_Type => Positive,
-         Element_Type => String);
-      use String_Vectors;
-
-      type Bean_Access is access all Inspectable_Bean'Class;
-
-      function Get_Bean_Deep
-        (B : in out Composite_Bean'Class;
-         Name : String)
-         return access Readonly_Bean'Class
-      is
-         Bean_Ptr : access Readonly_Bean'Class;
-         Composite_Bean_Ptr : access Composite_Bean'Class := B'Access;
-         Separator_Index : Natural;
-         Remaining_Name : String := Name (Name'Range);
-      begin
-         loop
-            Separator_Index := Index (Remaining_Name, ".");
-            if Separator_Index = 0 then
-               return Composite_Bean_Ptr.all.Get_Bean (Remaining_Name);
-            end if;
-            Bean_Ptr := Composite_Bean_Ptr.all.Get_Bean
-              (Remaining_Name (Remaining_Name'First .. Separator_Index - 1));
-            if Bean_Ptr = null then
-               return null;
-            end if;
-            Remaining_Name := Remaining_Name (Separator_Index + 1 .. Remaining_Name'Last);
-            if not (Bean_Ptr.all in Composite_Bean'Class) then
-               return null;
-            end if;
-            Composite_Bean_Ptr := Composite_Bean'Class (Bean_Ptr.all)'Access;
-         end loop;
-      end Get_Bean_Deep;
-
-      function Get_Deep
-        (B : in out Readonly_Bean'Class;
-         Name : String)
-         return Object
-      is
-         Bean_Ptr : access Readonly_Bean'Class;
-         Separator_Index : constant Natural := Index (Name, ".");
-      begin
-         if Separator_Index /= 0 then
-            if not (B in Composite_Bean'Class) then
-               return Null_Object;
-            end if;
-            Bean_Ptr := Get_Bean_Deep (Composite_Bean'Class (B),
-                                  Name (Name'First .. Separator_Index - 1));
-            return Bean_Ptr.Get_Value (Name (Separator_Index + 1 .. Name'Last));
-         else
-            return B.Get_Value (Name);
-         end if;
-      end Get_Deep;
-
-      function Is_Scalar (B : Readonly_Bean'Class;
-                          Name : String)
-                          return Boolean is
-         Typ : constant Data_Type := Get_Type (B.Get_Value (Name));
-      begin
-         return Typ /= TYPE_NULL and then Typ /= TYPE_ARRAY and then Typ /= TYPE_BEAN;
-      end Is_Scalar;
-
-      function Scalar_Properties
-        (B : Inspectable_Bean'Class)
-         return String_Vectors.Vector
-      is
-         Root_Properties : constant Meadowsweet.String_Array := B.Property_Names;
-         Result : String_Vectors.Vector;
-      begin
-         for I in Root_Properties'Range loop
-            if Is_Scalar (B, To_String (Root_Properties (I))) then
-               Result.Append (To_String (Root_Properties (I)));
-            end if;
-         end loop;
-         return Result;
-      end Scalar_Properties;
-
-      function Scalar_Properties
-        (B : in out Inspectable_Bean'Class;
-         Q : Query)
-         return String_Vectors.Vector
-      is
-         Result : String_Vectors.Vector;
-         Joined : Util.Beans.Objects.Object;
-         Joined_Bean : access Inspectable_Bean'Class;
-      begin
-         Result := Scalar_Properties (B);
-         for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
-            Joined := Get_Deep (B, To_String (Q.Joins (I)));
-            Joined_Bean := Bean_Access (To_Bean (Joined));
-            if Joined_Bean = null then
-               raise Persistence_Error with "joined property "
-                 & To_String (Q.Joins (I)) & " not found";
-            end if;
-            declare
-               Names : constant String_Vectors.Vector
-                 := Scalar_Properties (Joined_Bean.all);
-            begin
-               for J in 1 .. Length (Names) loop
-                  if Is_Scalar (Joined_Bean.all, Names (Positive (J)))
-                  then
-                     declare
-                        Name : constant String := To_String (Q.Joins (I)) & "."
-                          & Names (Positive (J));
-                     begin
-                        Result.Append (Name);
-                     end;
-                  end if;
-               end loop;
-            end;
-         end loop;
-         return Result;
-      end Scalar_Properties;
-
-         --  function Property_Names
-         --    (B : Bean_Type;
-         --     Q : Query)
-         --     return String_Vectors.Vector
-         --  is
-         --     Root_Property_Names : constant Meadowsweet.String_Array
-         --       := B.Property_Names;
-         --     Result : String_Vectors.Vector;
-         --     Joined : Util.Beans.Objects.Object;
-         --  begin
-         --     for I in Root_Property_Names'Range loop
-         --        Result.Append (To_String (Root_Property_Names (I)));
-         --     end loop;
-         --     for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
-         --        Joined := Get_Deep (B, To_String (Q.Joins (I)));
-         --        Result.Append (To_String (Joined));
-         --     end loop;
-         --     return Result;
-         --  end Property_Names;
+         (Index_Type => Positive,
+          Element_Type => Bean_Type);
 
       function Get
         (Q : Query;
@@ -553,102 +489,6 @@ package body Meadowsweet.Persistence is
          := GNATCOLL.SQL.Exec.No_Parameters)
          return Bean_Array
       is
-
-         function Select_Columns (B : Inspectable_Bean'Class;
-                                  Prefix : String;
-                                  Column_Count : in out Natural)
-                                  return Unbounded_String
-         is
-            Properties : constant String_Vectors.Vector := Scalar_Properties (B);
-            Mapping_Index : Natural;
-            SQL : Unbounded_String;
-            First : Boolean := True;
-         begin
-            if not (B in Util.Beans.Basic.Bean'Class)
-            then
-               raise Meadowsweet.Persistence.Persistence_Error
-               with "Bean_Type must be of type Util.Beans.Basic.Bean";
-            end if;
-            for P of Properties loop
-               if First then
-                  First := False;
-               else
-                  Append (SQL, ", ");
-               end if;
-               Append (SQL, Prefix);
-               Mapping_Index := Find_Mapping (Mappings, P);
-               if Mapping_Index = 0 then
-                  Append (SQL, P);
-               else
-                  Append (SQL, Mappings (Mapping_Index).Column);
-               end if;
-               Column_Count := Column_Count + 1;
-            end loop;
-            return SQL;
-         end Select_Columns;
-
-         function To_SQL (B : Bean_Type'Class;
-                          Column_Count : out Positive)
-                          return String
-         is
-            SQL : Unbounded_String := To_Unbounded_String ("SELECT ");
-            Mapping_Index : Natural;
-            Column_Count_Total : Natural := 0;
-         begin
-            Append (SQL, Select_Columns (B, "T0.", Column_Count_Total));
-            for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
-               Append (SQL, ", ");
-               Mapping_Index := Find_Mapping (Mappings,
-                                              To_String (Q.Joins (I)));
-               if Mapping_Index = 0
-                 or else Mappings (Mapping_Index).Property_Type /= TYPE_BEAN
-               then
-                  raise Persistence_Error with To_String (Q.Joins (I))
-                    & " is not mapped to a bean";
-               end if;
-               declare
-                  Joined : constant access Inspectable_Bean'Class
-                    := Mappings (Mapping_Index).Factory.all;
-               begin
-                  Append (SQL, Select_Columns (Joined.all,
-                          "T" & Ada.Strings.Fixed.Trim (Mapping_Index'Image,
-                            Ada.Strings.Left)
-                          & '.',
-                          Column_Count_Total));
-               end;
-            end loop;
-            Append (SQL, " FROM ");
-            Append (SQL, Root_Table);
-            Append (SQL, " T0 ");
-            for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
-               Append (SQL, "JOIN ");
-               Mapping_Index := Find_Mapping (Mappings,
-                                              To_String (Q.Joins (I)));
-               if Mapping_Index = 0
-                 or else Mappings (Mapping_Index).Target_Table = ""
-               then
-                  raise Meadowsweet.Persistence.Persistence_Error
-                  with To_String (Q.Joins (I)) & " is not mapped to any table";
-               end if;
-               Append (SQL, Mappings (Mapping_Index).Target_Table);
-               Append (SQL, " T");
-               Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
-                       Ada.Strings.Left));
-               Append (SQL, " ON T0.");
-               Append (SQL, Mappings (Mapping_Index).Column);
-               Append (SQL, " = T");
-               Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image, Ada.Strings.Left));
-               Append (SQL, ".");
-               Append (SQL, Mappings (Mapping_Index).Target_Primary_Key);
-            end loop;
-            if not Q.Where.Ref.Is_Null then
-               Append (SQL, " WHERE ");
-               Append (SQL, Q.Where.Ref.Get.To_SQL (Mappings));
-            end if;
-            Ada.Text_IO.Put_Line ("SQL: " & To_String (SQL));
-            Column_Count := Column_Count_Total;
-            return To_String (SQL);
-         end To_SQL;
 
          function To_Object (R : Forward_Cursor;
                              I : Positive;
@@ -661,6 +501,11 @@ package body Meadowsweet.Persistence is
               (if Mapping_Index = 0 then TYPE_STRING
                else Mappings (Mapping_Index).Property_Type);
          begin
+            if GNATCOLL.SQL.Exec.Is_Null
+              (R, Field_Index'First + Field_Index (I - 1))
+            then
+               return Null_Object;
+            end if;
             case Typ is
             when TYPE_INTEGER =>
                return To_Object
@@ -673,13 +518,43 @@ package body Meadowsweet.Persistence is
             end case;
          end To_Object;
 
+         procedure Set_To_Vector_Bean
+           (Target : in out Vector_Bean'Class;
+            Bean_Name : String;
+            Property_Name : String;
+            Value : Object)
+         is
+            Bean_Ptr : access Inspectable_Bean'Class;
+            Mapping_Index : Natural;
+         begin
+            if Target.Is_Empty
+              and then not Is_Null (Value)
+            then
+               Mapping_Index := Find_Mapping (Mappings, Bean_Name);
+               if Mapping_Index = 0
+                 or else Mappings (Mapping_Index).Factory = null
+               then
+                  raise Persistence_Error
+                    with "no factory found for the elements of "
+                    & Bean_Name;
+               end if;
+               Bean_Ptr := Mappings (Mapping_Index).Factory.all;
+               Target.Append (To_Object (Bean_Ptr, DYNAMIC));
+            end if;
+            if not Target.Is_Empty then
+               Bean'Class (To_Bean (Target.First_Element).all).Set_Value
+                 (Property_Name, Value);
+            end if;
+         end Set_To_Vector_Bean;
+
          procedure Set_Deep
            (B : in out Bean'Class;
             Name : String;
             Value : Object)
          is
             Bean_Ptr : access Readonly_Bean'Class;
-            Separator_Index : constant Natural := Index (Name, ".");
+            Separator_Index : constant Natural
+              := Index (Name, ".", Ada.Strings.Backward);
          begin
             if Separator_Index /= 0 then
                if not (B in Composite_Bean'Class) then
@@ -688,11 +563,24 @@ package body Meadowsweet.Persistence is
                Bean_Ptr := Get_Bean_Deep
                  (Composite_Bean'Class (B),
                   Name (Name'First .. Separator_Index - 1));
-               if not (Bean_Ptr.all in Bean'Class) then
-                  raise No_Value;
+               if Bean_Ptr.all in Vector_Bean'Class then
+                  declare
+                     Vector_Bean_Ptr : constant Vector_Bean_Access
+                       := Vector_Bean_Access (Bean_Ptr);
+                  begin
+                     Set_To_Vector_Bean
+                       (Vector_Bean_Ptr.all,
+                        Name (Name'First .. Separator_Index - 1),
+                        Name (Separator_Index + 1 .. Name'Last),
+                        Value);
+                  end;
+               else
+                  if not (Bean_Ptr.all in Bean'Class) then
+                     raise No_Value;
+                  end if;
+                  Bean'Class (Bean_Ptr.all).Set_Value
+                    (Name (Separator_Index + 1 .. Name'Last), Value);
                end if;
-               Bean'Class (Bean_Ptr.all).Set_Value
-                 (Name (Separator_Index + 1 .. Name'Last), Value);
             else
                B.Set_Value (Name, Value);
             end if;
@@ -718,34 +606,36 @@ package body Meadowsweet.Persistence is
             for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
                Mapping_Index := Find_Mapping (Mappings,
                                               To_String (Q.Joins (I)));
-               declare
-                  Joined : constant access Inspectable_Bean'Class
-                    := Mappings (Mapping_Index).Factory.all;
-               begin
-                  if not (B in Bean'Class) then
-                     raise Persistence_Error
-                       with "Bean does not implement Util.Beans.Basic.Bean";
-                  end if;
-                  Set_Deep (Util.Beans.Basic.Bean'Class (B),
-                            To_String (Q.Joins (I)), Bean_Access (Joined));
-               end;
+               if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
+               then
+                  declare
+                     Joined : constant access Inspectable_Bean'Class
+                       := Mappings (Mapping_Index).Factory.all;
+                  begin
+                     if not (B in Bean'Class) then
+                        raise Persistence_Error
+                          with "Bean does not implement Util.Beans.Basic.Bean";
+                     end if;
+                     Set_Deep (Util.Beans.Basic.Bean'Class (B),
+                               To_String (Q.Joins (I)), Bean_Access (Joined));
+                  end;
+               end if;
             end loop;
          end Create_Children;
 
          R : GNATCOLL.SQL.Exec.Forward_Cursor;
          Property_Names : String_Vectors.Vector;
 
-         procedure Fetch (B : in out Bean_Type) is
+         procedure Get_Row (B : in out Bean_Type) is
          begin
             Create_Children (B, Q, Mappings);
-            for I in 1 .. Length (Property_Names)
-            loop
+            for I in 1 .. String_Vectors.Length (Property_Names) loop
                Set_Deep (Util.Beans.Basic.Bean'Class (Bean_Type'Class (B)),
                          Property_Names (Positive (I)),
                          To_Object (R, Positive (I),
                            Property_Names (Positive (I))));
             end loop;
-         end Fetch;
+         end Get_Row;
 
          B : Bean_Type;
          Column_Count : Positive;
@@ -753,12 +643,14 @@ package body Meadowsweet.Persistence is
       begin
          --  Create children because Scalar_Properties and To_SQL accesses them
          Create_Children (B, Q, Mappings);
-         Property_Names := Scalar_Properties (B, Q);
+         Property_Names := Scalar_Properties (B, Q, Mappings);
          declare
-            SQL : constant String := To_SQL (B, Column_Count);
+            SQL : constant String := Meadowsweet.Persistence.Queries.To_SQL
+              (Q, Root_Table, Mappings, B, Column_Count);
             P : constant Prepared_Statement :=
               GNATCOLL.SQL.Exec.Prepare (SQL, On_Server => True);
          begin
+            Ada.Text_IO.Put_Line ("SQL: " & SQL);
             R.Fetch (Q.DB, P, Params);
             if not Success (Q.DB) then
                raise Persistence_Error with Last_Error_Message (Q.DB);
@@ -767,7 +659,7 @@ package body Meadowsweet.Persistence is
                --  Insert bean, then modify to avoid copying the bean and its children
                Beans.Append (B);
                Bean_Vectors.Update_Element (Beans, Bean_Vectors.Last_Index (Beans),
-                                            Fetch'Access);
+                                            Get_Row'Access);
                Next (R);
             end loop;
 
@@ -783,5 +675,45 @@ package body Meadowsweet.Persistence is
       end Get;
 
    end Tables;
+
+   function Scalar_Properties
+     (B : Inspectable_Bean'Class)
+     return String_Vectors.Vector
+   is
+      Root_Properties : constant Meadowsweet.String_Array := B.Property_Names;
+      Result : String_Vectors.Vector;
+   begin
+      for I in Root_Properties'Range loop
+         if Is_Scalar (B, To_String (Root_Properties (I))) then
+            Result.Append (To_String (Root_Properties (I)));
+         end if;
+      end loop;
+      return Result;
+   end Scalar_Properties;
+
+   function Get_Primary_Key (Mappings : Bean_Mappings;
+                             Bean_Name : String := "")
+                                   return String is
+   begin
+      for I in Mappings'Range loop
+         if Mappings (I).Is_Primary_Key
+           and then Length (Mappings (I).Property_Name) > Bean_Name'Length
+           and then Slice (Mappings (I).Property_Name, 1, Bean_Name'Length)
+             = Bean_Name
+         then
+            declare
+               Last_Part : constant String := Slice
+                 (Mappings (I).Property_Name,
+                  Bean_Name'Length + 1,
+                  Length (Mappings (I).Property_Name));
+            begin
+               if Index (Last_Part, ".") = 0 then
+                  return Last_Part;
+               end if;
+            end;
+         end if;
+      end loop;
+      return "";
+   end Get_Primary_Key;
 
 end Meadowsweet.Persistence;

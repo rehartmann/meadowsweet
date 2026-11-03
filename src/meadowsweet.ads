@@ -8,9 +8,10 @@ with Servlet.Core;
 with Servlet.Server;
 with Servlet.Requests;
 with Servlet.Responses;
-with Util.Beans.Basic;
 with GNAT.Regpat;
+with Util.Beans.Basic;
 with Util.Beans.Objects;
+with Util.Beans.Objects.Vectors;
 
 package Meadowsweet is
 
@@ -36,11 +37,11 @@ package Meadowsweet is
       Name : String)
       return Object is abstract;
 
-   -- Returns a reference to a child bean instead of a copy
+   --  Returns a reference to a child bean instead of a copy
    function Get_Bean
      (From : in out Composite_Bean;
       Name : String)
-      return access Inspectable_Bean'Class is abstract;
+      return access Util.Beans.Basic.Readonly_Bean'Class is abstract;
 
    --  Returns the value of the path parameter with the given name.
    --  A path parameter is delimited by curly brackets, e.g. {id}.
@@ -62,15 +63,18 @@ package Meadowsweet is
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
 
-   type Dynamic_Bean is new Inspectable_Bean with private;
+   type Dynamic_Bean is new Inspectable_Bean
+      and Util.Beans.Basic.Bean with private;
 
    overriding function Get_Value (From : Dynamic_Bean;
                                   Name : String)
                                   return Util.Beans.Objects.Object;
 
-   overriding function Property_Names (From : Dynamic_Bean)
-                                       return String_Array;
+   overriding
+   function Property_Names (From : Dynamic_Bean)
+                            return String_Array;
 
+   overriding
    procedure Set_Value (This : in out Dynamic_Bean;
                         Name : String;
                         Value : Util.Beans.Objects.Object);
@@ -93,6 +97,20 @@ package Meadowsweet is
       Method : String;
       Path : String;
       Action : Action_Access);
+
+      --  Converts a vector bean to an array object.
+   function To_Object (Source : Util.Beans.Objects.Vectors.Vector_Bean)
+                       return Object;
+
+   function Get_Deep
+     (B : in out Util.Beans.Basic.Readonly_Bean'Class;
+      Name : String)
+      return Object;
+
+      function Get_Bean_Deep
+     (B : in out Composite_Bean'Class;
+      Name : String)
+     return access Util.Beans.Basic.Readonly_Bean'Class;
 
 private
 
@@ -161,7 +179,9 @@ private
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
 
-   type Dynamic_Bean is new Inspectable_Bean with record
+   type Dynamic_Bean is new Inspectable_Bean
+     and Util.Beans.Basic.Bean
+   with record
       Attributes : Bean_Maps.Map;
    end record;
 

@@ -6,6 +6,7 @@ package body Meadowsweet.Persistence.Queries is
 
    function Create_Query
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Distinct : Boolean := False;
       Where : Expression := Null_Expression;
       Joins : String_Array := (1 .. 0 => <>))
       return Query
@@ -16,6 +17,7 @@ package body Meadowsweet.Persistence.Queries is
          Join_Vector.Append (Joins (I));
       end loop;
       return (DB => DB,
+              Distinct => Distinct,
               Joins => Join_Vector,
               Where => Where);
    end Create_Query;
@@ -191,5 +193,146 @@ package body Meadowsweet.Persistence.Queries is
       Expression_Pointers.Set (Result.Ref, Exp.all);
       return Result;
    end Parameter;
+
+   function Select_Columns (Q : Query;
+                            B : in out Inspectable_Bean'Class;
+                            Mappings : Bean_Mappings;
+                            Prefix : String;
+                            Column_Count : in out Natural)
+                            return Unbounded_String
+   is
+      Properties : constant String_Vectors.Vector
+        := Scalar_Properties (B);
+      Mapping_Index : Natural;
+      SQL : Unbounded_String;
+      First : Boolean := True;
+   begin
+      for P of Properties loop
+         if First then
+            First := False;
+         else
+            Append (SQL, ", ");
+         end if;
+         Append (SQL, Prefix);
+         Mapping_Index := Find_Mapping (Mappings, P);
+         if Mapping_Index = 0 then
+            Append (SQL, P);
+         else
+            Append (SQL, Mappings (Mapping_Index).Column);
+         end if;
+         Column_Count := Column_Count + 1;
+      end loop;
+      return SQL;
+   end Select_Columns;
+
+   function To_SQL (Q : Query;
+                    Root_Table : String;
+                    Mappings : Bean_Mappings;
+                    B : in out Inspectable_Bean'Class;
+                    Column_Count : out Positive)
+                    return String
+   is
+      SQL : Unbounded_String := To_Unbounded_String ("SELECT ");
+      Mapping_Index, Source_Mapping_Index : Natural;
+      Separator_Index : Natural;
+      Column_Count_Total : Natural := 0;
+   begin
+      if Q.Distinct then
+         Append (SQL, "DISTINCT ");
+      end if;
+      Append (SQL, Select_Columns (Q, B, Mappings, "T0.", Column_Count_Total));
+      for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
+         Append (SQL, ", ");
+         Mapping_Index := Find_Mapping (Mappings,
+                                        To_String (Q.Joins (I)));
+         if Mapping_Index = 0
+           or else Mappings (Mapping_Index).Property_Type /= TYPE_BEAN
+         then
+            raise Persistence_Error with To_String (Q.Joins (I))
+              & " is not mapped to a bean";
+         end if;
+         declare
+            Joined : constant access Inspectable_Bean'Class
+              := Mappings (Mapping_Index).Factory.all;
+         begin
+            Append (SQL, Select_Columns (Q, Joined.all, Mappings,
+                    "T" & Ada.Strings.Fixed.Trim (Mapping_Index'Image,
+                      Ada.Strings.Left)
+                    & '.',
+                    Column_Count_Total));
+         end;
+      end loop;
+      Append (SQL, " FROM ");
+      Append (SQL, Root_Table);
+      Append (SQL, " T0 ");
+      for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
+         if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
+         then
+            --  One-to-many relationship
+            Append (SQL, "LEFT ");
+         end if;
+         Append (SQL, "JOIN ");
+         Mapping_Index := Find_Mapping (Mappings,
+                                        To_String (Q.Joins (I)));
+         if Mapping_Index = 0
+           or else Mappings (Mapping_Index).Target_Table = ""
+         then
+            raise Meadowsweet.Persistence.Persistence_Error
+            with To_String (Q.Joins (I)) & " is not mapped to any table";
+         end if;
+         Append (SQL, Mappings (Mapping_Index).Target_Table);
+
+         Append (SQL, " T");
+         Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
+                 Ada.Strings.Left));
+         Separator_Index := Index (Q.Joins (I), ".", Ada.Strings.Backward);
+         if Separator_Index = 0 then
+            --  Join is unqualified, so parent is root table
+            Append (SQL, " ON T0.");
+            Source_Mapping_Index := 0;
+         else
+            --  Get parent table by stripping off last component and
+            --  getting the mapping
+            Source_Mapping_Index := Find_Mapping
+              (Mappings,
+               Slice (Q.Joins (I), 1, Separator_Index - 1));
+            if Source_Mapping_Index = 0
+              or else Mappings (Source_Mapping_Index).Target_Table = ""
+            then
+               raise Meadowsweet.Persistence.Persistence_Error
+               with Slice (Q.Joins (I), 1, Separator_Index - 1)
+                 & " is not mapped to any table";
+            end if;
+            Append (SQL, "ON T");
+            Append (SQL, Trim (Source_Mapping_Index'Image, Ada.Strings.Both));
+            Append (SQL, '.');
+         end if;
+         if Mappings (Mapping_Index).Target_Column /= Null_Unbounded_String
+         then
+            Append (SQL, Get_Primary_Key (Mappings,
+                    (if Separator_Index = 0 then ""
+                     else Slice (Q.Joins (I), 1, Separator_Index - 1))));
+         else
+            Append (SQL, Mappings (Mapping_Index).Column);
+         end if;
+         Append (SQL, " = T");
+         Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
+                 Ada.Strings.Both));
+         Append (SQL, '.');
+         if Mappings (Mapping_Index).Target_Column /= Null_Unbounded_String
+         then
+            Append (SQL, Mappings (Mapping_Index).Target_Column);
+         else
+            Append (SQL, Mappings (Mapping_Index).Target_Primary_Key);
+         end if;
+         Append (SQL, ' ');
+      end loop;
+      if not Q.Where.Ref.Is_Null then
+         Append (SQL, " WHERE ");
+         Append (SQL, Q.Where.Ref.Get.To_SQL (Mappings));
+      end if;
+      Column_Count := Column_Count_Total;
+      return To_String (SQL);
+   end To_SQL;
 
 end Meadowsweet.Persistence.Queries;
