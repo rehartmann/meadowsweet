@@ -12,9 +12,19 @@ package body Meadowsweet.Persistence is
    use GNATCOLL.SQL;
    use GNATCOLL.SQL.Exec;
    use Ada.Strings.Fixed;
+   use Ada.Containers;
    use Util.Beans.Objects.Vectors;
 
-   Null_Mapping : Bean_Mapping;
+   Null_Mapping : constant Bean_Mapping :=
+     (Property_Name => Null_Unbounded_String,
+      Property_Type => TYPE_NULL,
+      Column => Null_Unbounded_String,
+      Is_Primary_Key => False,
+      Is_Auto_Generated => False,
+      Target_Table => Null_Unbounded_String,
+      Factory => null,
+      Target_Primary_Key => Null_Unbounded_String,
+      Target_Column => Null_Unbounded_String);
 
    function Mapping (Property_Name : String;
                      Property_Type : Util.Beans.Objects.Data_Type;
@@ -147,8 +157,9 @@ package body Meadowsweet.Persistence is
    is
       Result : String_Vectors.Vector;
       Joined : Util.Beans.Objects.Object;
-      Joined_Bean : access Inspectable_Bean'Class;
+      Joined_Bean : Inspectable_Bean_Access;
       Mapping_Index : Natural;
+      Bean_Allocated : Boolean := False;
    begin
       Result := Scalar_Properties (B);
       for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
@@ -169,6 +180,7 @@ package body Meadowsweet.Persistence is
                  & To_String (Q.Joins (I)) & ", no factory";
             end if;
             Joined_Bean := Mappings (Mapping_Index).Factory.all;
+            Bean_Allocated := True;
          end if;
          declare
             Names : constant String_Vectors.Vector
@@ -187,9 +199,108 @@ package body Meadowsweet.Persistence is
             end loop;
          end;
       end loop;
-      --  !! Free Joined index if created by factory
+      if Bean_Allocated then
+         Free_Inspectable_Bean (Joined_Bean);
+      end if;
       return Result;
    end Scalar_Properties;
+
+   function Is_Mergeable
+     (Left : in out Inspectable_Bean'Class;
+      Right : in out Inspectable_Bean'Class)
+      return Boolean
+   is
+      Names : constant Meadowsweet.String_Array := Left.Property_Names;
+      Left_Child, Right_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+      Left_Object, Right_Object : Object;
+      Children_Differ : Boolean := False;
+   begin
+      if not (Left in Composite_Bean'Class
+              and then Right in Composite_Bean'Class)
+      then
+         return False;
+      end if;
+      for I in Names'Range loop
+         Left_Child := Composite_Bean'Class (Left).Get_Bean (To_String (Names (I)));
+         Right_Child := Composite_Bean'Class (Right).Get_Bean (To_String (Names (I)));
+         if Left_Child /= null and then Right_Child /= null then
+            if Left_Child.all in Inspectable_Bean'Class
+              and then Right_Child.all in Inspectable_Bean'Class
+            then
+               if not Inspectable_Bean'Class (Left_Child.all).Equals
+                 (Inspectable_Bean'Class (Right_Child.all))
+               then
+                  return False;
+               end if;
+            elsif Left_Child.all in Vector_Bean'Class
+              and then Right_Child.all in Vector_Bean'Class
+            then
+               if not Equal_Elements (Vector_Bean (Left_Child.all),
+                                      Vector_Bean (Right_Child.all))
+               then
+                  Children_Differ := True;
+               end if;
+            else
+               return False;
+            end if;
+         elsif Left_Child = null and then Right_Child = null then
+            Left_Object := Left.Get_Value (To_String (Names (I)));
+            Right_Object := Right.Get_Value (To_String (Names (I)));
+            if Left_Object /= Right_Object then
+               return False;
+            end if;
+         else
+            return False;
+         end if;
+      end loop;
+      return Children_Differ;
+   end Is_Mergeable;
+
+   procedure Merge
+     (Target : in out Vector_Bean;
+      Source : Vector_Bean)
+   is
+   begin
+      for Value of Source loop
+         if not Contains (Target, Value) then
+            Target.Append (Value);
+         end if;
+      end loop;
+   end Merge;
+
+   procedure Do_Merge
+     (Target : in out Composite_Bean'Class;
+      Source : in out Composite_Bean'Class)
+   is
+      Names : constant Meadowsweet.String_Array := Target.Property_Names;
+      Target_Child, Source_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+   begin
+      for I in Names'Range loop
+         Target_Child := Target.Get_Bean (To_String (Names (I)));
+         Source_Child := Source.Get_Bean (To_String (Names (I)));
+         if Target_Child /= null and then Source_Child /= null
+         then
+            if Target_Child.all in Vector_Bean'Class
+              and then Source_Child.all in Vector_Bean'Class
+            then
+               Merge (Vector_Bean (Target_Child.all),
+                      Vector_Bean (Source_Child.all));
+            elsif Target_Child.all in Composite_Bean'Class
+              and then Source_Child.all in Composite_Bean'Class
+            then
+               Do_Merge (Composite_Bean'Class (Target_Child.all),
+                        Composite_Bean'Class (Source_Child.all));
+            end if;
+         end if;
+      end loop;
+   end Do_Merge;
+
+   procedure Merge
+     (Target : in out Inspectable_Bean'Class;
+      Source : in out Inspectable_Bean'Class) is
+   begin
+      Do_Merge (Composite_Bean'Class (Target), Composite_Bean'Class (Source));
+   end Merge;
 
    package body Tables is
 
@@ -558,7 +669,7 @@ package body Meadowsweet.Persistence is
          begin
             if Separator_Index /= 0 then
                if not (B in Composite_Bean'Class) then
-                  raise No_Value;
+                  raise No_Value with "not a composite bean";
                end if;
                Bean_Ptr := Get_Bean_Deep
                  (Composite_Bean'Class (B),
@@ -576,7 +687,7 @@ package body Meadowsweet.Persistence is
                   end;
                else
                   if not (Bean_Ptr.all in Bean'Class) then
-                     raise No_Value;
+                     raise No_Value with "not a bean";
                   end if;
                   Bean'Class (Bean_Ptr.all).Set_Value
                     (Name (Separator_Index + 1 .. Name'Last), Value);
@@ -660,6 +771,16 @@ package body Meadowsweet.Persistence is
                Beans.Append (B);
                Bean_Vectors.Update_Element (Beans, Bean_Vectors.Last_Index (Beans),
                                             Get_Row'Access);
+               --  Try to merge the bean with the previous bean
+               if Beans.Length >= 2
+                 and then Is_Mergeable
+                     (Beans (Positive (Beans.Length) - 1),
+                      Beans (Positive (Beans.Length)))
+               then
+                  Merge (Beans.Reference (Positive (Beans.Length) - 1),
+                         Beans.Reference (Positive (Beans.Length)));
+                  Beans.Delete_Last;
+               end if;
                Next (R);
             end loop;
 
@@ -693,7 +814,7 @@ package body Meadowsweet.Persistence is
 
    function Get_Primary_Key (Mappings : Bean_Mappings;
                              Bean_Name : String := "")
-                                   return String is
+                             return String is
    begin
       for I in Mappings'Range loop
          if Mappings (I).Is_Primary_Key

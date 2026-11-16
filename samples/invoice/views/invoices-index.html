@@ -13,8 +13,8 @@
 {% for invoice in invoices %}
 <tr>
 <td>{{ invoice.id }}
-<td>{{ invoice.customer.name }}
-<td>{{ invoice.customer.id }}
+<td>{{ invoice.recipient.name }}
+<td>{{ invoice.recipient.id }}
 <td><a href="/invoice/invoices/{{ invoice.id }}">Show</a>
 <td><a href="/invoice/invoices/{{ invoice.id }}?_method=DELETE">Delete</a>
 {% endfor %}

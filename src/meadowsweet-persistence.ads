@@ -1,4 +1,5 @@
 with Ada.Containers.Indefinite_Vectors;
+with Ada.Unchecked_Deallocation;
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
 with GNATCOLL.Refcount;
@@ -214,5 +215,9 @@ private
    function Is_Scalar (B : Util.Beans.Basic.Readonly_Bean'Class;
                        Name : String)
                           return Boolean;
+
+   procedure Free_Inspectable_Bean is new Ada.Unchecked_Deallocation
+     (Object => Inspectable_Bean'Class,
+      Name => Inspectable_Bean_Access);
 
 end Meadowsweet.Persistence;

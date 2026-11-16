@@ -23,18 +23,29 @@ package body Invoice_DB is
            Property_Type => Util.Beans.Objects.TYPE_INTEGER,
            Is_Auto_Generated => True));
 
+   function Create_Item return access Meadowsweet.Inspectable_Bean'Class is
+   begin
+      return new Item;
+   end Create_Item;
+
    Invoice_Mappings : constant Bean_Mappings
      := (Primary_Key_Mapping
            (Property_Name => "id",
             Property_Type => Util.Beans.Objects.TYPE_INTEGER,
             Is_Auto_Generated => True),
          Mapping
-           (Property_Name => "customer",
+           (Property_Name => "recipient",
             Property_Type => Util.Beans.Objects.TYPE_BEAN,
             Column => "customer_id",
             Target_Table => "customers",
             Factory => Create_Customer'Access,
-            Target_Primary_Key => "id"));
+            Target_Primary_Key => "id"),
+         To_Many_Mapping
+           (Property_Name => "items",
+            Target_Table => "items",
+            Target_Column => "invoice_id",
+            Factory => Create_Item'Access)
+        );
 
    function Customer_From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
                                  return Customer is
@@ -132,45 +143,54 @@ package body Invoice_DB is
                                        return Meadowsweet.String_Array is
    begin
       return (To_Unbounded_String ("id"),
-              To_Unbounded_String ("customer"));
+              To_Unbounded_String ("recipient"),
+              To_Unbounded_String ("items"));
    end Property_Names;
 
-   --  The object returned on Name = "customer" points to From,
-   --  so it will be valid only as long as From is valid
    overriding function Get_Value (From : Invoice;
                                   Name : String)
-                                  return Util.Beans.Objects.Object is
+                                  return Object is
       Customer_Ptr : Customer_Access;
    begin
       if Name = "id" then
          return To_Object (From.Id);
       end if;
-      if Name = "customer" then
+      if Name = "recipient" then
          Customer_Ptr := new Customer;
          Customer_Ptr.all := From.Recipient;
          return To_Object (Customer_Ptr, DYNAMIC);
       end if;
+      if Name = "items" then
+         --  Convert vector to array bean
+         return Meadowsweet.To_Object (From.Items);
+      end if;
       return Null_Object;
    end Get_Value;
 
-   function Get_Bean (From : in out Invoice;
-                      Name : String)
-                      return access Meadowsweet.Inspectable_Bean'Class is
+   overriding function Get_Bean
+     (From : in out Invoice;
+      Name : String)
+      return access Util.Beans.Basic.Readonly_Bean'Class is
    begin
-      if Name = "customer" then
+      if Name = "recipient" then
          return From.Recipient'Unchecked_Access;
+      end if;
+      if Name = "items" then
+         return From.Items'Unchecked_Access;
       end if;
       return null;
    end Get_Bean;
 
    overriding procedure Set_Value (From : in out Invoice;
                                    Name : String;
-                                   Value : Util.Beans.Objects.Object) is
+                                   Value : Object) is
    begin
       if Name = "id" then
          From.Id := To_Integer (Value);
-      elsif Name = "customer" then
+      elsif Name = "recipient" then
          From.Recipient := Customer_Access (To_Bean (Value)).all;
+      elsif Name = "items" then
+         raise No_Value with "setting items is not supported";
       else
          raise No_Value with "property " & Name & " does not exist";
       end if;
@@ -183,7 +203,8 @@ package body Invoice_DB is
         := Meadowsweet.Persistence.Queries.Create_Query
           (DB => DB,
            Where => Get_Value ("id") = Parameter (DB, 1),
-           Joins => (1 => To_Unbounded_String ("customer")));
+           Joins => (To_Unbounded_String ("recipient"),
+                     To_Unbounded_String ("items")));
       Objects : constant Invoice_Persistence.Bean_Array
         := Invoice_Persistence.Get
           (Q,
@@ -192,8 +213,9 @@ package body Invoice_DB is
            (1 => +Id));
    begin
       if Objects'Length = 0 then
-         raise Persistence_Error with "No customer found with ID " & Id'Image;
+         raise Persistence_Error with "No invoice found with ID " & Id'Image;
       end if;
+      --  !! Add parameter to signal no object found
       Target := Objects (1);
    end Get;
 
@@ -204,7 +226,8 @@ package body Invoice_DB is
       Q : constant Meadowsweet.Persistence.Query
         := Create_Query
           (DB => DB,
-           Joins => (1 => To_Unbounded_String ("customer")));
+           Distinct => True,
+           Joins => (1 => To_Unbounded_String ("recipient")));
       Objects : constant Invoice_Persistence.Bean_Array
         := Invoice_Persistence.Get
           (Q,
@@ -230,5 +253,53 @@ package body Invoice_DB is
    begin
       Customer_Persistence.Delete (DB, "invoices", Invoice_Mappings, Id);
    end Delete_Invoice;
+
+   overriding
+   function Property_Names (From : Item)
+                            return Meadowsweet.String_Array is
+   begin
+      return (To_Unbounded_String ("id"),
+              To_Unbounded_String ("invoice_id"),
+              To_Unbounded_String ("product"),
+              To_Unbounded_String ("quantity"));
+   end Property_Names;
+
+   overriding
+   function Get_Value (From : Item;
+                       Name : String)
+                       return Object is
+   begin
+      if Name = "id" then
+         return To_Object (From.Id);
+      end if;
+      if Name = "invoice_id" then
+         return To_Object (From.Invoice_Id);
+      end if;
+      if Name = "product" then
+         return To_Object (From.Product);
+      end if;
+      if Name = "quantity" then
+         return To_Object (From.Quantity);
+      end if;
+      return Null_Object;
+   end Get_Value;
+
+   overriding
+   procedure Set_Value (From : in out Item;
+                        Name : String;
+                        Value : Object) is
+   begin
+      if Name = "id" then
+         From.Id := To_Integer (Value);
+      elsif Name = "invoice_id" then
+         From.Invoice_Id := To_Integer (Value);
+      elsif Name = "product" then
+         From.Product := To_Unbounded_String (Value);
+      elsif Name = "quantity" then
+         From.Quantity := To_Integer (Value);
+      else
+         raise No_Value;
+      end if;
+   end Set_Value;
 
 end Invoice_DB;

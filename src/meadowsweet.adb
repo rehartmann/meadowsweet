@@ -3,17 +3,116 @@ with Ada.Strings.Fixed;
 package body Meadowsweet is
 
    use Ada.Strings.Fixed;
+   use Ada.Containers;
    use GNAT.Regpat;
+   use Util.Beans.Objects.Vectors;
 
    Servlet_Name : constant String := "meadowsweet-dispatcher";
 
-   --  function Get_Bean
-   --    (From : in out Composite_Bean;
-   --     Name : String)
-   --     return access Inspectable_Bean is
-   --  begin
-   --     return null;
-   --  end Get_Bean;
+   function Contains (Container : Vector_Bean;
+                      Value : Object)
+                      return Boolean is
+   begin
+      for I in 1 .. Natural (Container.Length) loop
+         if Equals (Container.Element (I), Value) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Contains;
+
+   function Equal_Elements (Left, Right : Vector_Bean)
+                            return Boolean
+   is
+   begin
+      if Left.Length /= Right.Length then
+         return False;
+      end if;
+      for I in 1 .. Natural (Right.Length) loop
+         if not Contains (Left, Right (I)) then
+            return False;
+         end if;
+      end loop;
+      return True;
+   end Equal_Elements;
+
+   function Equals (Left, Right : Object)
+                    return Boolean
+   is
+      Left_Type : constant Data_Type := Get_Type (Left);
+      Right_Type : constant Data_Type := Get_Type (Right);
+      Left_Bean, Right_Bean : access Util.Beans.Basic.Readonly_Bean'Class;
+   begin
+      if Left_Type /= Right_Type then
+         return False;
+      end if;
+      if Left_Type = TYPE_BEAN then
+         Left_Bean := To_Bean (Left);
+         Right_Bean := To_Bean (Right);
+         if Left_Bean = null or else Right_Bean = null then
+            return Left_Bean = null and then Right_Bean = null;
+         end if;
+         if Left_Bean.all in Composite_Bean'Class
+                 and then Right_Bean.all in Composite_Bean'Class
+         then
+            return Composite_Bean'Class (Left_Bean.all)
+              = Composite_Bean'Class (Right_Bean.all);
+         end if;
+         if Left_Bean.all in Vector_Bean'Class
+               and then Right_Bean.all in Vector_Bean'Class
+         then
+            return Equal_Elements (Vector_Bean (Left_Bean.all),
+                                   Vector_Bean (Right_Bean.all));
+         end if;
+         return False;
+      end if;
+      return Left = Right;
+   end Equals;
+
+   function Equals (Left, Right : in out Inspectable_Bean'Class)
+                    return Boolean
+   is
+      Names : constant String_Array := Left.Property_Names;
+      Left_Child, Right_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+      Left_Object, Right_Object : Object;
+   begin
+      for I in Names'Range loop
+         if Left in Composite_Bean'Class and then Right in Composite_Bean'Class
+         then
+            Left_Child := Composite_Bean'Class (Left).Get_Bean (To_String (Names (I)));
+            Right_Child := Composite_Bean'Class (Right).Get_Bean (To_String (Names (I)));
+         end if;
+         if Left_Child /= null and then Right_Child /= null then
+            if Left_Child.all in Composite_Bean'Class
+              and then Right_Child.all in Composite_Bean'Class
+            then
+               if not Composite_Bean (Left_Child.all).Equals (Composite_Bean (Right_Child.all))
+               then
+                  return False;
+               end if;
+            elsif (Left_Child.all in Vector_Bean'Class)
+              and then (Right_Child.all in Vector_Bean'Class)
+            then
+               if not Equal_Elements (Vector_Bean (Left_Child.all),
+                                      Vector_Bean (Right_Child.all))
+               then
+                  return False;
+               end if;
+            else
+               return False;
+            end if;
+         elsif Left_Child = null and then Right_Child = null then
+            Left_Object := Left.Get_Value (To_String (Names (I)));
+            Right_Object := Right.Get_Value (To_String (Names (I)));
+            if not Equals (Left_Object, Right_Object) then
+               return False;
+            end if;
+         else
+            return False;
+         end if;
+      end loop;
+      return True;
+   end Equals;
 
    procedure Initialize
      (Context : aliased in out Web_Context;

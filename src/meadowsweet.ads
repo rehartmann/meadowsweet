@@ -24,12 +24,13 @@ package Meadowsweet is
 
    type Inspectable_Bean is interface and Util.Beans.Basic.Readonly_Bean;
 
-   type Inspectable_Bean_Access is access all Meadowsweet.Inspectable_Bean;
+   type Inspectable_Bean_Access is access all Meadowsweet.Inspectable_Bean'Class;
 
    function Property_Names (This : Inspectable_Bean)
                             return String_Array is abstract;
 
-   type Composite_Bean is abstract new Util.Beans.Basic.Bean and Inspectable_Bean
+   type Composite_Bean is abstract new Util.Beans.Basic.Bean
+     and Inspectable_Bean
    with null record;
 
    overriding function Get_Value
@@ -42,6 +43,13 @@ package Meadowsweet is
      (From : in out Composite_Bean;
       Name : String)
       return access Util.Beans.Basic.Readonly_Bean'Class is abstract;
+
+   function Equals (Left, Right : in out Inspectable_Bean'Class)
+                    return Boolean;
+
+   --  Compares two objects, handling the case of composite bean objects
+   function Equals (Left, Right : Object)
+                    return Boolean;
 
    --  Returns the value of the path parameter with the given name.
    --  A path parameter is delimited by curly brackets, e.g. {id}.
@@ -107,7 +115,7 @@ package Meadowsweet is
       Name : String)
       return Object;
 
-      function Get_Bean_Deep
+   function Get_Bean_Deep
      (B : in out Composite_Bean'Class;
       Name : String)
      return access Util.Beans.Basic.Readonly_Bean'Class;
@@ -184,5 +192,13 @@ private
    with record
       Attributes : Bean_Maps.Map;
    end record;
+
+   function Equal_Elements
+     (Left, Right : Util.Beans.Objects.Vectors.Vector_Bean)
+      return Boolean;
+
+   function Contains (Container : Util.Beans.Objects.Vectors.Vector_Bean;
+                      Value : Object)
+                      return Boolean;
 
 end Meadowsweet;

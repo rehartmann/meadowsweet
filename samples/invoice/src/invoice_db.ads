@@ -4,6 +4,7 @@ with Meadowsweet;
 with Ada.Strings.Unbounded;
 with Util.Beans.Basic;
 with Util.Beans.Objects;
+with Util.Beans.Objects.Vectors;
 
 package Invoice_DB is
 
@@ -21,11 +22,11 @@ package Invoice_DB is
 
    overriding function Get_Value (From : Customer;
                                   Name : String)
-                                  return Util.Beans.Objects.Object;
+                                  return Object;
 
    overriding procedure Set_Value (From : in out Customer;
                                    Name : String;
-                                   Value : Util.Beans.Objects.Object);
+                                   Value : Object);
 
    type Customer_Access is access all Customer;
 
@@ -45,22 +46,27 @@ package Invoice_DB is
      and Meadowsweet.Inspectable_Bean with record
       Id : Natural := 0;
       Recipient : aliased Customer;
+      Items : aliased Util.Beans.Objects.Vectors.Vector_Bean;
    end record;
 
-   overriding function Property_Names (From : Invoice)
-                                       return Meadowsweet.String_Array;
+   overriding
+   function Property_Names (From : Invoice)
+                            return Meadowsweet.String_Array;
 
-   overriding function Get_Value (From : Invoice;
-                                  Name : String)
-                                  return Util.Beans.Objects.Object;
+   overriding
+   function Get_Value (From : Invoice;
+                       Name : String)
+                       return Object;
 
+   overriding
    function Get_Bean (From : in out Invoice;
-                                 Name : String)
-                                 return access Meadowsweet.Inspectable_Bean'Class;
+                      Name : String)
+                      return access Util.Beans.Basic.Readonly_Bean'Class;
 
-   overriding procedure Set_Value (From : in out Invoice;
-                                   Name : String;
-                                   Value : Util.Beans.Objects.Object);
+   overriding
+   procedure Set_Value (From : in out Invoice;
+                        Name : String;
+                        Value : Object);
 
    type Invoice_Access is access Invoice;
 
@@ -75,5 +81,27 @@ package Invoice_DB is
    procedure Insert (Source : Invoice'Class);
 
    procedure Delete_Invoice (Id : Positive);
+
+   type Item is new Util.Beans.Basic.Bean
+     and Meadowsweet.Inspectable_Bean with record
+      Id : Natural := 0;
+      Invoice_Id : Natural;
+      Product : Unbounded_String;
+      Quantity : Natural := 0;
+   end record;
+
+   overriding
+   function Property_Names (From : Item)
+                            return Meadowsweet.String_Array;
+
+   overriding
+   function Get_Value (From : Item;
+                       Name : String)
+                       return Object;
+
+   overriding
+   procedure Set_Value (From : in out Item;
+                        Name : String;
+                        Value : Object);
 
 end Invoice_DB;

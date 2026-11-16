@@ -1,10 +1,21 @@
 <html>
 <head>
-<title>Customer</title>
+<title>Invoice</title>
 <link rel="stylesheet" type="text/css" href="/invoice/style.css">
 <body>
 <div class="panel_content">
 <p>Id: {{ id }}
-<p>Customer: {{ customer.name }}
+<p>Customer: {{ recipient.name }}
+<p>Items:
+<table>
+<tr>
+<th>Product
+<th>Quantity
+{% for item in items %}
+<tr>
+<td>{{ item.product }}
+<td>{{ item.quantity }}
+{% endfor %}
+</table>
 </div>
 <p><a href="/invoice/invoices">All entries</a>

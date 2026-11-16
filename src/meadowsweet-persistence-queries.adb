@@ -252,14 +252,15 @@ package body Meadowsweet.Persistence.Queries is
               & " is not mapped to a bean";
          end if;
          declare
-            Joined : constant access Inspectable_Bean'Class
+            Joined_Bean : Inspectable_Bean_Access
               := Mappings (Mapping_Index).Factory.all;
          begin
-            Append (SQL, Select_Columns (Q, Joined.all, Mappings,
+            Append (SQL, Select_Columns (Q, Joined_Bean.all, Mappings,
                     "T" & Ada.Strings.Fixed.Trim (Mapping_Index'Image,
                       Ada.Strings.Left)
                     & '.',
                     Column_Count_Total));
+            Free_Inspectable_Bean (Joined_Bean);
          end;
       end loop;
       Append (SQL, " FROM ");

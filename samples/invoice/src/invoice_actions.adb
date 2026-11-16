@@ -173,9 +173,9 @@ package body Invoice_Actions is
       Id := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
       Invoice_DB.Get (Id, Inv);
       Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
-   exception
-      when Constraint_Error =>
-         Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
+--   exception
+--      when Constraint_Error =>
+--         Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
    end Invoices_Show;
 
    procedure Invoices_Delete

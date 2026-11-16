@@ -5,3 +5,9 @@ CREATE table invoices (
 CREATE TABLE customers (
    id SERIAL PRIMARY KEY,
    name TEXT);
+
+CREATE TABLE items (
+   id SERIAL PRIMARY KEY,
+   invoice_id INTEGER,
+   product TEXT,
+   quantity INTEGER);
