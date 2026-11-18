@@ -1,4 +1,5 @@
 with Meadowsweet.Jintp;
+with Meadowsweet.Beans;
 
 package body Phonebook_Actions is
 
@@ -63,7 +64,7 @@ package body Phonebook_Actions is
    begin
       if not Ok then
          declare
-            Model : Meadowsweet.Dynamic_Bean;
+            Model : Meadowsweet.Beans.Dynamic_Bean;
          begin
             Model.Set_Value ("address", To_Object (Address'Access, STATIC));
             Model.Set_Value ("message", To_Object (Message));
@@ -81,7 +82,7 @@ package body Phonebook_Actions is
       Response : in out Servlet.Responses.Response'Class)
    is
       Address : aliased Address_Entry;
-      Model : Meadowsweet.Dynamic_Bean;
+      Model : Meadowsweet.Beans.Dynamic_Bean;
       Id : constant Positive
         := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
       Empty_Message : constant String := "";
@@ -123,7 +124,7 @@ package body Phonebook_Actions is
       Address.Id := Id;
       if not Ok then
          declare
-            Model : Meadowsweet.Dynamic_Bean;
+            Model : Meadowsweet.Beans.Dynamic_Bean;
          begin
             Model.Set_Value ("address", To_Object (Address'Access, STATIC));
             Model.Set_Value ("message", To_Object (Message));

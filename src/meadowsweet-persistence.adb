@@ -3,9 +3,9 @@ with Ada.Containers.Vectors;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
-with Util.Beans.Objects;
 with Util.Beans.Objects.Vectors;
 with Meadowsweet.Persistence.Queries;
+with Meadowsweet.Beans;
 
 package body Meadowsweet.Persistence is
 
@@ -14,6 +14,7 @@ package body Meadowsweet.Persistence is
    use Ada.Strings.Fixed;
    use Ada.Containers;
    use Util.Beans.Objects.Vectors;
+   use Meadowsweet.Beans;
 
    Null_Mapping : constant Bean_Mapping :=
      (Property_Name => Null_Unbounded_String,
@@ -163,7 +164,7 @@ package body Meadowsweet.Persistence is
    begin
       Result := Scalar_Properties (B);
       for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
-         Joined := Get_Deep (B, To_String (Q.Joins (I)));
+         Joined := Meadowsweet.Beans.Get_Deep (B, To_String (Q.Joins (I)));
          Joined_Bean := Inspectable_Bean_Access (To_Bean (Joined));
          if Joined_Bean = null then
             --  Bean is not there, try to create one using the factory
@@ -227,8 +228,8 @@ package body Meadowsweet.Persistence is
             if Left_Child.all in Inspectable_Bean'Class
               and then Right_Child.all in Inspectable_Bean'Class
             then
-               if not Inspectable_Bean'Class (Left_Child.all).Equals
-                 (Inspectable_Bean'Class (Right_Child.all))
+               if not Equals (Inspectable_Bean'Class (Left_Child.all),
+                              Inspectable_Bean'Class (Right_Child.all))
                then
                   return False;
                end if;
@@ -262,7 +263,7 @@ package body Meadowsweet.Persistence is
    is
    begin
       for Value of Source loop
-         if not Contains (Target, Value) then
+         if not Meadowsweet.Beans.Contains (Target, Value) then
             Target.Append (Value);
          end if;
       end loop;

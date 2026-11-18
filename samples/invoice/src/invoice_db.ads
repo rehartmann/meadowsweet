@@ -1,10 +1,11 @@
 with Ada.Containers;
 with Ada.Containers.Vectors;
-with Meadowsweet;
 with Ada.Strings.Unbounded;
 with Util.Beans.Basic;
 with Util.Beans.Objects;
 with Util.Beans.Objects.Vectors;
+with Meadowsweet;
+with Meadowsweet.Beans;
 
 package Invoice_DB is
 
@@ -42,7 +43,7 @@ package Invoice_DB is
 
    procedure Delete_Customer (Id : Positive);
 
-   type Invoice is new Meadowsweet.Composite_Bean
+   type Invoice is new Meadowsweet.Beans.Composite_Bean
      and Meadowsweet.Inspectable_Bean with record
       Id : Natural := 0;
       Recipient : aliased Customer;

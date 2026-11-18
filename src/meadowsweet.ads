@@ -1,8 +1,6 @@
 with Ada.Containers;
-with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Vectors;
 with Ada.Strings;
-with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Servlet.Core;
 with Servlet.Server;
@@ -11,45 +9,15 @@ with Servlet.Responses;
 with GNAT.Regpat;
 with Util.Beans.Basic;
 with Util.Beans.Objects;
-with Util.Beans.Objects.Vectors;
 
 package Meadowsweet is
 
    use Ada.Strings.Unbounded;
+
+   --  Only needed for Meadowsweet.JinTP
    use Util.Beans.Objects;
 
    type Web_Context is limited private;
-
-   type String_Array is array (Positive range <>) of Unbounded_String;
-
-   type Inspectable_Bean is interface and Util.Beans.Basic.Readonly_Bean;
-
-   type Inspectable_Bean_Access is access all Meadowsweet.Inspectable_Bean'Class;
-
-   function Property_Names (This : Inspectable_Bean)
-                            return String_Array is abstract;
-
-   type Composite_Bean is abstract new Util.Beans.Basic.Bean
-     and Inspectable_Bean
-   with null record;
-
-   overriding function Get_Value
-     (From : Composite_Bean;
-      Name : String)
-      return Object is abstract;
-
-   --  Returns a reference to a child bean instead of a copy
-   function Get_Bean
-     (From : in out Composite_Bean;
-      Name : String)
-      return access Util.Beans.Basic.Readonly_Bean'Class is abstract;
-
-   function Equals (Left, Right : in out Inspectable_Bean'Class)
-                    return Boolean;
-
-   --  Compares two objects, handling the case of composite bean objects
-   function Equals (Left, Right : Object)
-                    return Boolean;
 
    --  Returns the value of the path parameter with the given name.
    --  A path parameter is delimited by curly brackets, e.g. {id}.
@@ -58,34 +26,9 @@ package Meadowsweet is
       Name : String)
       return String;
 
-   type Renderer is interface;
-
-   procedure Render_Response
-     (This : Renderer;
-      View : String;
-      Model : Inspectable_Bean'Class;
-      Response : in out Servlet.Responses.Response'Class)
-   is abstract;
-
    type Action_Access is access procedure
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
-
-   type Dynamic_Bean is new Inspectable_Bean
-      and Util.Beans.Basic.Bean with private;
-
-   overriding function Get_Value (From : Dynamic_Bean;
-                                  Name : String)
-                                  return Util.Beans.Objects.Object;
-
-   overriding
-   function Property_Names (From : Dynamic_Bean)
-                            return String_Array;
-
-   overriding
-   procedure Set_Value (This : in out Dynamic_Bean;
-                        Name : String;
-                        Value : Util.Beans.Objects.Object);
 
    --  Initializes a web context. This procedure must be called before
    --  calling Add_Route.
@@ -106,19 +49,25 @@ package Meadowsweet is
       Path : String;
       Action : Action_Access);
 
-      --  Converts a vector bean to an array object.
-   function To_Object (Source : Util.Beans.Objects.Vectors.Vector_Bean)
-                       return Object;
+   type String_Array is array (Positive range <>) of Unbounded_String;
 
-   function Get_Deep
-     (B : in out Util.Beans.Basic.Readonly_Bean'Class;
-      Name : String)
-      return Object;
+   --  This should be in Meadowsweet.Beans, but that would break Meadowsweet_Jintp,
+   --  and it's too early for a new Meadowsweet_Jintp release
+   type Inspectable_Bean is interface and Util.Beans.Basic.Readonly_Bean;
 
-   function Get_Bean_Deep
-     (B : in out Composite_Bean'Class;
-      Name : String)
-     return access Util.Beans.Basic.Readonly_Bean'Class;
+   function Property_Names (This : Inspectable_Bean)
+                            return String_Array is abstract;
+
+   type Inspectable_Bean_Access is access all Inspectable_Bean'Class;
+
+   type Renderer is interface;
+
+   procedure Render_Response
+     (This : Renderer;
+      View : String;
+      Model : Inspectable_Bean'Class;
+      Response : in out Servlet.Responses.Response'Class)
+   is abstract;
 
 private
 
@@ -180,25 +129,5 @@ private
       Dispatcher : aliased Dispatcher_Servlet;
       Routes : Route_Vectors.Vector;
    end record;
-
-   package Bean_Maps is new Ada.Containers.Indefinite_Hashed_Maps
-     (Key_Type        => String,
-      Element_Type    => Util.Beans.Objects.Object,
-      Hash            => Ada.Strings.Hash,
-      Equivalent_Keys => "=");
-
-   type Dynamic_Bean is new Inspectable_Bean
-     and Util.Beans.Basic.Bean
-   with record
-      Attributes : Bean_Maps.Map;
-   end record;
-
-   function Equal_Elements
-     (Left, Right : Util.Beans.Objects.Vectors.Vector_Bean)
-      return Boolean;
-
-   function Contains (Container : Util.Beans.Objects.Vectors.Vector_Bean;
-                      Value : Object)
-                      return Boolean;
 
 end Meadowsweet;

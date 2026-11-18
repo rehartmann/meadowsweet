@@ -3,6 +3,8 @@ with Ada.Unchecked_Deallocation;
 with GNATCOLL.SQL;
 with GNATCOLL.SQL.Exec;
 with GNATCOLL.Refcount;
+with Util.Beans.Basic;
+with Util.Beans.Objects;
 
 package Meadowsweet.Persistence is
 
@@ -31,7 +33,8 @@ package Meadowsweet.Persistence is
 
    Null_Expression : constant Expression;
 
-   type Bean_Factory is access function return access Inspectable_Bean'Class;
+   type Bean_Factory is access function
+     return access Meadowsweet.Inspectable_Bean'Class;
 
    function Mapping (Property_Name : String;
                      Property_Type : Util.Beans.Objects.Data_Type;
@@ -45,7 +48,8 @@ package Meadowsweet.Persistence is
 
    function Primary_Key_Mapping
      (Property_Name : String;
-      Property_Type : Util.Beans.Objects.Data_Type := TYPE_INTEGER;
+      Property_Type : Util.Beans.Objects.Data_Type
+      := Util.Beans.Objects.TYPE_INTEGER;
       Column : String := "";
       Is_Auto_Generated : Boolean)
      return Bean_Mapping;
@@ -61,7 +65,7 @@ package Meadowsweet.Persistence is
 
    generic
 
-      type Bean_Type is new Inspectable_Bean with private;
+      type Bean_Type is new Meadowsweet.Inspectable_Bean with private;
 
    package Tables is
 
@@ -205,7 +209,7 @@ private
       Element_Type => String);
 
    function Scalar_Properties
-     (B : Inspectable_Bean'Class)
+     (B : Meadowsweet.Inspectable_Bean'Class)
          return String_Vectors.Vector;
 
    function Get_Primary_Key (Mappings : Bean_Mappings;
@@ -217,7 +221,7 @@ private
                           return Boolean;
 
    procedure Free_Inspectable_Bean is new Ada.Unchecked_Deallocation
-     (Object => Inspectable_Bean'Class,
-      Name => Inspectable_Bean_Access);
+     (Object => Meadowsweet.Inspectable_Bean'Class,
+      Name => Meadowsweet.Inspectable_Bean_Access);
 
 end Meadowsweet.Persistence;

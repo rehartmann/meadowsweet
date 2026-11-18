@@ -31,7 +31,7 @@ package Meadowsweet.Persistence.Queries is
    function To_SQL (Q : Query;
                     Root_Table : String;
                     Mappings : Bean_Mappings;
-                    B : in out Inspectable_Bean'Class;
+                    B : in out Meadowsweet.Inspectable_Bean'Class;
                     Column_Count : out Positive)
                     return String;
 

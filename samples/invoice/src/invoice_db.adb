@@ -162,7 +162,7 @@ package body Invoice_DB is
       end if;
       if Name = "items" then
          --  Convert vector to array bean
-         return Meadowsweet.To_Object (From.Items);
+         return Meadowsweet.Beans.To_Object (From.Items);
       end if;
       return Null_Object;
    end Get_Value;
