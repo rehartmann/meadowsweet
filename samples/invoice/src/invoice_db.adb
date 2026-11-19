@@ -170,7 +170,7 @@ package body Invoice_DB is
    overriding function Get_Bean
      (From : in out Invoice;
       Name : String)
-      return access Util.Beans.Basic.Readonly_Bean'Class is
+      return Util.Beans.Basic.Readonly_Bean_Access is
    begin
       if Name = "recipient" then
          return From.Recipient'Unchecked_Access;

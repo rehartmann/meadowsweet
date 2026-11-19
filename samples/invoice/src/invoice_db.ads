@@ -62,7 +62,7 @@ package Invoice_DB is
    overriding
    function Get_Bean (From : in out Invoice;
                       Name : String)
-                      return access Util.Beans.Basic.Readonly_Bean'Class;
+                      return Util.Beans.Basic.Readonly_Bean_Access;
 
    overriding
    procedure Set_Value (From : in out Invoice;

@@ -19,7 +19,7 @@ package Meadowsweet.Beans is
    function Get_Bean
      (From : in out Composite_Bean;
       Name : String)
-      return access Util.Beans.Basic.Readonly_Bean'Class is abstract;
+      return Util.Beans.Basic.Readonly_Bean_Access is abstract;
 
    function Equals (Left, Right : in out Meadowsweet.Inspectable_Bean'Class)
                     return Boolean;
@@ -64,7 +64,7 @@ package Meadowsweet.Beans is
    function Get_Bean_Deep
      (B : in out Composite_Bean'Class;
       Name : String)
-     return access Util.Beans.Basic.Readonly_Bean'Class;
+     return Util.Beans.Basic.Readonly_Bean_Access;
 
 private
 

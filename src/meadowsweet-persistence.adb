@@ -13,6 +13,7 @@ package body Meadowsweet.Persistence is
    use GNATCOLL.SQL.Exec;
    use Ada.Strings.Fixed;
    use Ada.Containers;
+   use Util.Beans.Basic;
    use Util.Beans.Objects.Vectors;
    use Meadowsweet.Beans;
 
@@ -148,8 +149,6 @@ package body Meadowsweet.Persistence is
       return Typ /= TYPE_NULL and then Typ /= TYPE_ARRAY and then Typ /= TYPE_BEAN;
    end Is_Scalar;
 
-   type Bean_Access is access all Inspectable_Bean'Class;
-
    function Scalar_Properties
      (B : in out Inspectable_Bean'Class;
       Q : Query;
@@ -212,7 +211,7 @@ package body Meadowsweet.Persistence is
       return Boolean
    is
       Names : constant Meadowsweet.String_Array := Left.Property_Names;
-      Left_Child, Right_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+      Left_Child, Right_Child : Readonly_Bean_Access;
       Left_Object, Right_Object : Object;
       Children_Differ : Boolean := False;
    begin
@@ -257,14 +256,46 @@ package body Meadowsweet.Persistence is
       return Children_Differ;
    end Is_Mergeable;
 
+   procedure Do_Merge
+     (Target : in out Composite_Bean'Class;
+      Source : in out Composite_Bean'Class);
+
+   procedure Merge (Target : in out Vector_Bean;
+                    Source_Value : Object)
+   is
+      Source_Bean, Target_Bean : Util.Beans.Basic.Readonly_Bean_Access;
+   begin
+      for Target_Value of Target loop
+         if Get_Type (Source_Value) = TYPE_BEAN
+           and then Get_Type (Target_Value) = TYPE_BEAN
+         then
+            Source_Bean := To_Bean (Source_Value);
+            Target_Bean := To_Bean (Target_Value);
+            if Source_Bean /= null
+              and then Source_Bean.all in Composite_Bean'Class
+              and then Target_Bean /= null
+              and then Target_Bean.all in Composite_Bean'Class
+            then
+               if Is_Mergeable (Composite_Bean'Class (Target_Bean.all),
+                                Composite_Bean'Class (Source_Bean.all))
+               then
+                  Do_Merge (Composite_Bean'Class (Target_Bean.all),
+                            Composite_Bean'Class (Source_Bean.all));
+                  return;
+               end if;
+            end if;
+         end if;
+      end loop;
+      Target.Append (Source_Value);
+   end Merge;
+
    procedure Merge
      (Target : in out Vector_Bean;
-      Source : Vector_Bean)
-   is
+      Source : Vector_Bean) is
    begin
       for Value of Source loop
          if not Meadowsweet.Beans.Contains (Target, Value) then
-            Target.Append (Value);
+            Merge (Target, Value);
          end if;
       end loop;
    end Merge;
@@ -274,7 +305,7 @@ package body Meadowsweet.Persistence is
       Source : in out Composite_Bean'Class)
    is
       Names : constant Meadowsweet.String_Array := Target.Property_Names;
-      Target_Child, Source_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+      Target_Child, Source_Child : Readonly_Bean_Access;
    begin
       for I in Names'Range loop
          Target_Child := Target.Get_Bean (To_String (Names (I)));
@@ -304,8 +335,6 @@ package body Meadowsweet.Persistence is
    end Merge;
 
    package body Tables is
-
-      use Util.Beans.Basic;
 
       procedure Insert
         (DB : Database_Connection;
@@ -701,7 +730,7 @@ package body Meadowsweet.Persistence is
          procedure Set_Deep
            (B : in out Bean'Class;
             Name : String;
-            Value : Bean_Access)
+            Value : Inspectable_Bean_Access)
          is
             Obj : constant Object := To_Object (Value, DYNAMIC);
          begin
@@ -729,7 +758,8 @@ package body Meadowsweet.Persistence is
                           with "Bean does not implement Util.Beans.Basic.Bean";
                      end if;
                      Set_Deep (Util.Beans.Basic.Bean'Class (B),
-                               To_String (Q.Joins (I)), Bean_Access (Joined));
+                               To_String (Q.Joins (I)),
+                               Inspectable_Bean_Access (Joined));
                   end;
                end if;
             end loop;

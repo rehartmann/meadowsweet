@@ -6,6 +6,7 @@ package body Meadowsweet.Beans is
    use Ada.Strings;
    use Ada.Strings.Fixed;
    use Ada.Containers;
+   use Util.Beans.Basic;
    use Util.Beans.Objects.Vectors;
 
    function Contains (Container : Vector_Bean;
@@ -40,7 +41,7 @@ package body Meadowsweet.Beans is
    is
       Left_Type : constant Data_Type := Get_Type (Left);
       Right_Type : constant Data_Type := Get_Type (Right);
-      Left_Bean, Right_Bean : access Util.Beans.Basic.Readonly_Bean'Class;
+      Left_Bean, Right_Bean : Util.Beans.Basic.Readonly_Bean_Access;
    begin
       if Left_Type /= Right_Type then
          return False;
@@ -72,7 +73,7 @@ package body Meadowsweet.Beans is
                     return Boolean
    is
       Names : constant String_Array := Left.Property_Names;
-      Left_Child, Right_Child : access Util.Beans.Basic.Readonly_Bean'Class;
+      Left_Child, Right_Child : Util.Beans.Basic.Readonly_Bean_Access;
       Left_Object, Right_Object : Object;
    begin
       for I in Names'Range loop
@@ -82,8 +83,8 @@ package body Meadowsweet.Beans is
             Right_Child := Composite_Bean'Class (Right).Get_Bean (To_String (Names (I)));
          end if;
          if Left_Child /= null and then Right_Child /= null then
-            if Left_Child.all in Composite_Bean'Class
-              and then Right_Child.all in Composite_Bean'Class
+            if Left_Child.all in Inspectable_Bean'Class
+              and then Right_Child.all in Inspectable_Bean'Class
             then
                if not Equals (Inspectable_Bean'Class (Left_Child.all),
                               Inspectable_Bean'Class (Right_Child.all))
@@ -159,9 +160,9 @@ package body Meadowsweet.Beans is
    function Get_Bean_Deep
      (B : in out Composite_Bean'Class;
       Name : String)
-     return access Util.Beans.Basic.Readonly_Bean'Class
+     return Util.Beans.Basic.Readonly_Bean_Access
    is
-      Bean_Ptr : access Util.Beans.Basic.Readonly_Bean'Class;
+      Bean_Ptr : Util.Beans.Basic.Readonly_Bean_Access;
       Composite_Bean_Ptr : access Composite_Bean'Class := B'Access;
       Separator_Index : Natural;
       Remaining_Name : String := Name (Name'Range);
@@ -189,7 +190,7 @@ package body Meadowsweet.Beans is
       Name : String)
       return Object
    is
-      Bean_Ptr : access Util.Beans.Basic.Readonly_Bean'Class;
+      Bean_Ptr : Util.Beans.Basic.Readonly_Bean_Access;
       Separator_Index : constant Natural := Index (Name, ".");
    begin
       if Separator_Index /= 0 then
