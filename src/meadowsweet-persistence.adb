@@ -1,5 +1,4 @@
 with Ada.Containers;
-with Ada.Containers.Vectors;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
@@ -148,6 +147,21 @@ package body Meadowsweet.Persistence is
    begin
       return Typ /= TYPE_NULL and then Typ /= TYPE_ARRAY and then Typ /= TYPE_BEAN;
    end Is_Scalar;
+
+   function Scalar_Properties
+     (B : Inspectable_Bean'Class)
+     return String_Vectors.Vector
+   is
+      Root_Properties : constant Meadowsweet.String_Array := B.Property_Names;
+      Result : String_Vectors.Vector;
+   begin
+      for I in Root_Properties'Range loop
+         if Is_Scalar (B, To_String (Root_Properties (I))) then
+            Result.Append (To_String (Root_Properties (I)));
+         end if;
+      end loop;
+      return Result;
+   end Scalar_Properties;
 
    function Scalar_Properties
      (B : in out Inspectable_Bean'Class;
@@ -584,7 +598,7 @@ package body Meadowsweet.Persistence is
          if Order'Length > 0 then
             Append (Q, " ORDER BY ");
             for I in Order'Range loop
-               Append (Q, Order (I).Column_Name);
+               Append (Q, Order (I).Name);
                if Order (I).Direction = Desc then
                   Append (Q, " DESC");
                end if;
@@ -630,7 +644,6 @@ package body Meadowsweet.Persistence is
          := GNATCOLL.SQL.Exec.No_Parameters)
          return Bean_Array
       is
-
          function To_Object (R : Forward_Cursor;
                              I : Positive;
                              Name : String)
@@ -827,21 +840,6 @@ package body Meadowsweet.Persistence is
       end Get;
 
    end Tables;
-
-   function Scalar_Properties
-     (B : Inspectable_Bean'Class)
-     return String_Vectors.Vector
-   is
-      Root_Properties : constant Meadowsweet.String_Array := B.Property_Names;
-      Result : String_Vectors.Vector;
-   begin
-      for I in Root_Properties'Range loop
-         if Is_Scalar (B, To_String (Root_Properties (I))) then
-            Result.Append (To_String (Root_Properties (I)));
-         end if;
-      end loop;
-      return Result;
-   end Scalar_Properties;
 
    function Get_Primary_Key (Mappings : Bean_Mappings;
                              Bean_Name : String := "")

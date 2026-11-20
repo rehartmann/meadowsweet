@@ -4,11 +4,23 @@ package body Meadowsweet.Persistence.Queries is
 
    use Ada.Strings.Fixed;
 
+   function To_Vector
+     (Order : Order_Spec)
+      return Meadowsweet.Persistence.Order_Element_Vectors.Vector is
+      Result : Meadowsweet.Persistence.Order_Element_Vectors.Vector;
+   begin
+      for I in Order'Range loop
+         Result.Append (Order (I));
+      end loop;
+      return Result;
+   end To_Vector;
+
    function Create_Query
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Distinct : Boolean := False;
       Where : Expression := Null_Expression;
-      Joins : String_Array := (1 .. 0 => <>))
+      Joins : String_Array := (1 .. 0 => <>);
+      Order : Order_Spec := No_Order)
       return Query
    is
       Join_Vector : Name_Vectors.Vector;
@@ -19,7 +31,8 @@ package body Meadowsweet.Persistence.Queries is
       return (DB => DB,
               Distinct => Distinct,
               Joins => Join_Vector,
-              Where => Where);
+              Where => Where,
+              Order => To_Vector (Order));
    end Create_Query;
 
    type String_Constant is new Expression_Impl with record
@@ -41,8 +54,23 @@ package body Meadowsweet.Persistence.Queries is
 
    type Boolean_Constant_Access is access Boolean_Constant;
 
-   overriding function To_SQL (Self : Boolean_Constant;
-                               Mappings : Bean_Mappings)
+   overriding
+   function To_SQL (Self : Boolean_Constant;
+                    Mappings : Bean_Mappings)
+                    return String is
+   begin
+      return Self.Value'Image;
+   end To_SQL;
+
+   type Integer_Constant is new Expression_Impl with record
+      Value : Integer;
+   end record;
+
+   type Integer_Constant_Access is access Integer_Constant;
+
+   overriding
+   function To_SQL (Self : Integer_Constant;
+                    Mappings : Bean_Mappings)
                     return String is
    begin
       return Self.Value'Image;
@@ -53,14 +81,19 @@ package body Meadowsweet.Persistence.Queries is
       Left, Right : Expression;
    end record;
 
-   overriding function To_SQL (Self : Binary_Operator;
-                               Mappings : Bean_Mappings)
-                   return String is
-
+   overriding function To_SQL
+     (Self : Binary_Operator;
+      Mappings : Bean_Mappings)
+      return String is
    begin
-      return Expression_Pointers.Get (Self.Left.Ref).To_SQL (Mappings)
+      return
+        "("
+        & Expression_Pointers.Get (Self.Left.Ref).To_SQL (Mappings)
+        & ' '
         & To_String (Self.Name)
-        & Expression_Pointers.Get (Self.Right.Ref).To_SQL (Mappings);
+        & ' '
+        & Expression_Pointers.Get (Self.Right.Ref).To_SQL (Mappings)
+        & ")";
    end To_SQL;
 
    type Binary_Operator_Access is access Binary_Operator;
@@ -143,13 +176,24 @@ package body Meadowsweet.Persistence.Queries is
       return Result;
    end "+";
 
+   function "+" (Value : Integer)
+                 return Expression
+   is
+      Result : Expression;
+      C : constant Integer_Constant_Access := new Integer_Constant'
+        (Value => Value);
+   begin
+      Expression_Pointers.Set (Result.Ref, C.all);
+      return Result;
+   end "+";
+
    function "=" (Left : Expression;
                  Right : Expression)
                  return Expression
    is
       Result : Expression;
       Exp : constant Binary_Operator_Access := new Binary_Operator'
-        (Name => To_Unbounded_String (" = "),
+        (Name => To_Unbounded_String ("="),
          Left => Left,
          Right => Right);
    begin
@@ -170,6 +214,104 @@ package body Meadowsweet.Persistence.Queries is
       Expression_Pointers.Set (Result.Ref, Exp.all);
       return Result;
    end "/=";
+
+   function "<" (Left : Expression;
+                  Right : Expression)
+                  return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String ("<"),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end "<";
+
+   function ">" (Left : Expression;
+                  Right : Expression)
+                  return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String (">"),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end ">";
+
+   function "<=" (Left : Expression;
+                  Right : Expression)
+                  return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String ("<="),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end "<=";
+
+   function ">=" (Left : Expression;
+                  Right : Expression)
+                  return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String (">="),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end ">=";
+
+   function "and" (Left : Expression;
+                 Right : Expression)
+                 return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String ("and"),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end "and";
+
+   function "or" (Left : Expression;
+                 Right : Expression)
+                 return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String ("or"),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end "or";
+
+   function Like (Left : Expression;
+                  Right : Expression)
+                  return Expression
+   is
+      Result : Expression;
+      Exp : constant Binary_Operator_Access := new Binary_Operator'
+        (Name => To_Unbounded_String ("LIKE"),
+         Left => Left,
+         Right => Right);
+   begin
+      Expression_Pointers.Set (Result.Ref, Exp.all);
+      return Result;
+   end Like;
 
    function Get_Value (Name : String)
                        return Expression
@@ -195,14 +337,14 @@ package body Meadowsweet.Persistence.Queries is
    end Parameter;
 
    function Select_Columns (Q : Query;
-                            B : in out Inspectable_Bean'Class;
+                            B : Inspectable_Bean'Class;
                             Mappings : Bean_Mappings;
                             Prefix : String;
                             Column_Count : in out Natural)
                             return Unbounded_String
    is
       Properties : constant String_Vectors.Vector
-        := Scalar_Properties (B);
+        := Meadowsweet.Persistence.Scalar_Properties (B);
       Mapping_Index : Natural;
       SQL : Unbounded_String;
       First : Boolean := True;
@@ -224,6 +366,55 @@ package body Meadowsweet.Persistence.Queries is
       end loop;
       return SQL;
    end Select_Columns;
+
+   function To_SQL (Order : Order_Element_Vectors.Vector;
+                    Mappings : Bean_Mappings)
+                    return String
+   is
+      Result : Unbounded_String := To_Unbounded_String ("ORDER BY ");
+      Separator_Index : Natural;
+      Mapping_Index : Natural;
+   begin
+      for I in Order.First_Index .. Order.Last_Index loop
+         if I > Order.First_Index then
+            Append (Result, ", ");
+         end if;
+         Separator_Index := Index (Order (I).Name, ".", Ada.Strings.Backward);
+         if Separator_Index = 0 then
+            Append (Result, "T0");
+         else
+            Mapping_Index := Find_Mapping
+              (Mappings, To_String (Order (I).Name) (1 .. Separator_Index - 1));
+            if Mapping_Index = 0
+              or else Mappings (Mapping_Index).Target_Table = ""
+            then
+               raise Meadowsweet.Persistence.Persistence_Error
+               with To_String (Order (I).Name) & " is not mapped to any table";
+            end if;
+            Append (Result, "T");
+            Append (Result, Trim (Mapping_Index'Image, Ada.Strings.Both));
+         end if;
+         Append (Result, '.');
+         Mapping_Index := Find_Mapping (Mappings, To_String (Order (I).Name));
+         if Mapping_Index = 0
+           or else Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
+         then
+            if Separator_Index = 0 then
+               Append (Result, Order (I).Name);
+            else
+               Append (Result, Slice (Order (I).Name,
+                       Separator_Index + 1,
+                       Length (Order (I).Name)));
+            end if;
+         else
+            Append (Result, To_String (Mappings (Mapping_Index).Target_Column));
+         end if;
+         if Order (I).Direction = Desc then
+            Append (Result, " DESC");
+         end if;
+      end loop;
+      return To_String (Result);
+   end To_SQL;
 
    function To_SQL (Q : Query;
                     Root_Table : String;
@@ -331,6 +522,10 @@ package body Meadowsweet.Persistence.Queries is
       if not Q.Where.Ref.Is_Null then
          Append (SQL, " WHERE ");
          Append (SQL, Q.Where.Ref.Get.To_SQL (Mappings));
+      end if;
+      if not Q.Order.Is_Empty then
+         Append (SQL, ' ');
+         Append (SQL, To_SQL (Q.Order, Mappings));
       end if;
       Column_Count := Column_Count_Total;
       return To_String (SQL);

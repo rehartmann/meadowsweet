@@ -6,13 +6,44 @@ package Meadowsweet.Persistence.Queries is
    function "+" (Value : Boolean)
                  return Expression;
 
+   function "+" (Value : Integer)
+                 return Expression;
+
    function "=" (Left : Expression;
                  Right : Expression)
                  return Expression;
 
    function "/=" (Left : Expression;
+                  Right : Expression)
+                  return Expression;
+
+   function "<" (Left : Expression;
                  Right : Expression)
                  return Expression;
+
+   function ">" (Left : Expression;
+                 Right : Expression)
+                 return Expression;
+
+   function "<=" (Left : Expression;
+                  Right : Expression)
+                  return Expression;
+
+   function ">=" (Left : Expression;
+                  Right : Expression)
+                  return Expression;
+
+   function "and" (Left : Expression;
+                   Right : Expression)
+                   return Expression;
+
+   function "or" (Left : Expression;
+                  Right : Expression)
+                  return Expression;
+
+   function Like (Left : Expression;
+                  Right : Expression)
+                  return Expression;
 
    function Get_Value (Name : String)
                        return Expression;
@@ -25,7 +56,8 @@ package Meadowsweet.Persistence.Queries is
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Distinct : Boolean := False;
       Where : Expression := Null_Expression;
-      Joins : String_Array := (1 .. 0 => <>))
+      Joins : String_Array := (1 .. 0 => <>);
+      Order : Order_Spec := No_Order)
       return Query;
 
    function To_SQL (Q : Query;

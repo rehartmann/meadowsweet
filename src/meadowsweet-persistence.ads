@@ -1,3 +1,4 @@
+with Ada.Containers.Vectors;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Unchecked_Deallocation;
 with GNATCOLL.SQL;
@@ -11,7 +12,7 @@ package Meadowsweet.Persistence is
    type Direction_Type is (Asc, Desc);
 
    type Order_Element is record
-      Column_Name : Unbounded_String;
+      Name : Unbounded_String;
       Direction : Direction_Type;
    end record;
 
@@ -190,11 +191,16 @@ private
       Ref : Expression_Pointers.Ref;
    end record;
 
+   package Order_Element_Vectors is new Ada.Containers.Vectors
+     (Index_Type => Positive,
+      Element_Type => Order_Element);
+
    type Query is record
       DB : GNATCOLL.SQL.Exec.Database_Connection;
       Distinct : Boolean;
       Where : Expression;
       Joins : Name_Vectors.Vector;
+      Order : Order_Element_Vectors.Vector;
    end record;
 
    Null_Expression : constant Expression
@@ -210,15 +216,15 @@ private
 
    function Scalar_Properties
      (B : Meadowsweet.Inspectable_Bean'Class)
-         return String_Vectors.Vector;
+      return String_Vectors.Vector;
 
    function Get_Primary_Key (Mappings : Bean_Mappings;
                              Bean_Name : String := "")
-                                   return String;
+                             return String;
 
    function Is_Scalar (B : Util.Beans.Basic.Readonly_Bean'Class;
                        Name : String)
-                          return Boolean;
+                       return Boolean;
 
    procedure Free_Inspectable_Bean is new Ada.Unchecked_Deallocation
      (Object => Meadowsweet.Inspectable_Bean'Class,
