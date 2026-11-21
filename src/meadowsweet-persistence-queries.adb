@@ -4,37 +4,6 @@ package body Meadowsweet.Persistence.Queries is
 
    use Ada.Strings.Fixed;
 
-   function To_Vector
-     (Order : Order_Spec)
-      return Meadowsweet.Persistence.Order_Element_Vectors.Vector is
-      Result : Meadowsweet.Persistence.Order_Element_Vectors.Vector;
-   begin
-      for I in Order'Range loop
-         Result.Append (Order (I));
-      end loop;
-      return Result;
-   end To_Vector;
-
-   function Create_Query
-     (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Distinct : Boolean := False;
-      Where : Expression := Null_Expression;
-      Joins : String_Array := (1 .. 0 => <>);
-      Order : Order_Spec := No_Order)
-      return Query
-   is
-      Join_Vector : Name_Vectors.Vector;
-   begin
-      for I in Joins'Range loop
-         Join_Vector.Append (Joins (I));
-      end loop;
-      return (DB => DB,
-              Distinct => Distinct,
-              Joins => Join_Vector,
-              Where => Where,
-              Order => To_Vector (Order));
-   end Create_Query;
-
    type String_Constant is new Expression_Impl with record
       Value : Unbounded_String;
    end record;
@@ -336,8 +305,7 @@ package body Meadowsweet.Persistence.Queries is
       return Result;
    end Parameter;
 
-   function Select_Columns (Q : Query;
-                            B : Inspectable_Bean'Class;
+   function Select_Columns (B : Inspectable_Bean'Class;
                             Mappings : Bean_Mappings;
                             Prefix : String;
                             Column_Count : in out Natural)
@@ -367,7 +335,7 @@ package body Meadowsweet.Persistence.Queries is
       return SQL;
    end Select_Columns;
 
-   function To_SQL (Order : Order_Element_Vectors.Vector;
+   function To_SQL (Order : Order_Spec;
                     Mappings : Bean_Mappings)
                     return String
    is
@@ -375,8 +343,8 @@ package body Meadowsweet.Persistence.Queries is
       Separator_Index : Natural;
       Mapping_Index : Natural;
    begin
-      for I in Order.First_Index .. Order.Last_Index loop
-         if I > Order.First_Index then
+      for I in Order'Range loop
+         if I > Order'First then
             Append (Result, ", ");
          end if;
          Separator_Index := Index (Order (I).Name, ".", Ada.Strings.Backward);
@@ -416,8 +384,11 @@ package body Meadowsweet.Persistence.Queries is
       return To_String (Result);
    end To_SQL;
 
-   function To_SQL (Q : Query;
-                    Root_Table : String;
+   function To_SQL (Root_Table : String;
+                    Distinct : Boolean;
+                    Joins : String_Array;
+                    Where : Expression;
+                    Order : Order_Spec;
                     Mappings : Bean_Mappings;
                     B : in out Inspectable_Bean'Class;
                     Column_Count : out Positive)
@@ -428,25 +399,25 @@ package body Meadowsweet.Persistence.Queries is
       Separator_Index : Natural;
       Column_Count_Total : Natural := 0;
    begin
-      if Q.Distinct then
+      if Distinct then
          Append (SQL, "DISTINCT ");
       end if;
-      Append (SQL, Select_Columns (Q, B, Mappings, "T0.", Column_Count_Total));
-      for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
+      Append (SQL, Select_Columns (B, Mappings, "T0.", Column_Count_Total));
+      for I in Joins'Range loop
          Append (SQL, ", ");
          Mapping_Index := Find_Mapping (Mappings,
-                                        To_String (Q.Joins (I)));
+                                        To_String (Joins (I)));
          if Mapping_Index = 0
            or else Mappings (Mapping_Index).Property_Type /= TYPE_BEAN
          then
-            raise Persistence_Error with To_String (Q.Joins (I))
+            raise Persistence_Error with To_String (Joins (I))
               & " is not mapped to a bean";
          end if;
          declare
             Joined_Bean : Inspectable_Bean_Access
               := Mappings (Mapping_Index).Factory.all;
          begin
-            Append (SQL, Select_Columns (Q, Joined_Bean.all, Mappings,
+            Append (SQL, Select_Columns (Joined_Bean.all, Mappings,
                     "T" & Ada.Strings.Fixed.Trim (Mapping_Index'Image,
                       Ada.Strings.Left)
                     & '.',
@@ -457,7 +428,7 @@ package body Meadowsweet.Persistence.Queries is
       Append (SQL, " FROM ");
       Append (SQL, Root_Table);
       Append (SQL, " T0 ");
-      for I in Q.Joins.First_Index .. Q.Joins.Last_Index loop
+      for I in Joins'Range loop
          if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
          then
             --  One-to-many relationship
@@ -465,19 +436,19 @@ package body Meadowsweet.Persistence.Queries is
          end if;
          Append (SQL, "JOIN ");
          Mapping_Index := Find_Mapping (Mappings,
-                                        To_String (Q.Joins (I)));
+                                        To_String (Joins (I)));
          if Mapping_Index = 0
            or else Mappings (Mapping_Index).Target_Table = ""
          then
             raise Meadowsweet.Persistence.Persistence_Error
-            with To_String (Q.Joins (I)) & " is not mapped to any table";
+            with To_String (Joins (I)) & " is not mapped to any table";
          end if;
          Append (SQL, Mappings (Mapping_Index).Target_Table);
 
          Append (SQL, " T");
          Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
                  Ada.Strings.Left));
-         Separator_Index := Index (Q.Joins (I), ".", Ada.Strings.Backward);
+         Separator_Index := Index (Joins (I), ".", Ada.Strings.Backward);
          if Separator_Index = 0 then
             --  Join is unqualified, so parent is root table
             Append (SQL, " ON T0.");
@@ -487,12 +458,12 @@ package body Meadowsweet.Persistence.Queries is
             --  getting the mapping
             Source_Mapping_Index := Find_Mapping
               (Mappings,
-               Slice (Q.Joins (I), 1, Separator_Index - 1));
+               Slice (Joins (I), 1, Separator_Index - 1));
             if Source_Mapping_Index = 0
               or else Mappings (Source_Mapping_Index).Target_Table = ""
             then
                raise Meadowsweet.Persistence.Persistence_Error
-               with Slice (Q.Joins (I), 1, Separator_Index - 1)
+               with Slice (Joins (I), 1, Separator_Index - 1)
                  & " is not mapped to any table";
             end if;
             Append (SQL, "ON T");
@@ -503,7 +474,7 @@ package body Meadowsweet.Persistence.Queries is
          then
             Append (SQL, Get_Primary_Key (Mappings,
                     (if Separator_Index = 0 then ""
-                     else Slice (Q.Joins (I), 1, Separator_Index - 1))));
+                     else Slice (Joins (I), 1, Separator_Index - 1))));
          else
             Append (SQL, Mappings (Mapping_Index).Column);
          end if;
@@ -519,13 +490,13 @@ package body Meadowsweet.Persistence.Queries is
          end if;
          Append (SQL, ' ');
       end loop;
-      if not Q.Where.Ref.Is_Null then
+      if not Where.Ref.Is_Null then
          Append (SQL, " WHERE ");
-         Append (SQL, Q.Where.Ref.Get.To_SQL (Mappings));
+         Append (SQL, Where.Ref.Get.To_SQL (Mappings));
       end if;
-      if not Q.Order.Is_Empty then
+      if Order'Length > 0 then
          Append (SQL, ' ');
-         Append (SQL, To_SQL (Q.Order, Mappings));
+         Append (SQL, To_SQL (Order, Mappings));
       end if;
       Column_Count := Column_Count_Total;
       return To_String (SQL);

@@ -199,18 +199,15 @@ package body Invoice_DB is
    procedure Get (Id : Positive; Target : in out Invoice) is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
-      Q : constant Meadowsweet.Persistence.Query
-        := Meadowsweet.Persistence.Queries.Create_Query
-          (DB => DB,
-           Where => Get_Value ("id") = Parameter (DB, 1),
-           Joins => (To_Unbounded_String ("recipient"),
-                     To_Unbounded_String ("items")));
       Objects : constant Invoice_Persistence.Bean_Array
         := Invoice_Persistence.Get
-          (Q,
-           "invoices",
-           Invoice_Mappings,
-           (1 => +Id));
+          (DB => DB,
+           Root_Table => "invoices",
+           Where => Get_Value ("id") = Parameter (DB, 1),
+           Joins => (To_Unbounded_String ("recipient"),
+                     To_Unbounded_String ("items")),
+           Mappings => Invoice_Mappings,
+           Params => (1 => +Id));
    begin
       if Objects'Length = 0 then
          raise Persistence_Error with "No invoice found with ID " & Id'Image;
@@ -223,16 +220,13 @@ package body Invoice_DB is
       DB : constant Database_Connection
         := Tasking.Get_Task_Connection (DB_Descr);
       Result : Invoice_Vectors.Vector;
-      Q : constant Meadowsweet.Persistence.Query
-        := Create_Query
-          (DB => DB,
-           Distinct => True,
-           Joins => (1 => To_Unbounded_String ("recipient")));
       Objects : constant Invoice_Persistence.Bean_Array
         := Invoice_Persistence.Get
-          (Q,
-           "invoices",
-           Invoice_Mappings);
+          (DB => DB,
+           Root_Table => "invoices",
+           Distinct => True,
+           Joins => (1 => To_Unbounded_String ("recipient")),
+           Mappings => Invoice_Mappings);
    begin
       for I in Objects'Range loop
          Invoice_Vectors.Append (Result, Objects (I));

@@ -52,16 +52,11 @@ package Meadowsweet.Persistence.Queries is
                        Position : Positive)
                        return Expression;
 
-   function Create_Query
-     (DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Distinct : Boolean := False;
-      Where : Expression := Null_Expression;
-      Joins : String_Array := (1 .. 0 => <>);
-      Order : Order_Spec := No_Order)
-      return Query;
-
-   function To_SQL (Q : Query;
-                    Root_Table : String;
+   function To_SQL (Root_Table : String;
+                    Distinct : Boolean;
+                    Joins : String_Array;
+                    Where : Expression;
+                    Order : Order_Spec;
                     Mappings : Bean_Mappings;
                     B : in out Meadowsweet.Inspectable_Bean'Class;
                     Column_Count : out Positive)

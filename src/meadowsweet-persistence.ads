@@ -1,4 +1,3 @@
-with Ada.Containers.Vectors;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Unchecked_Deallocation;
 with GNATCOLL.SQL;
@@ -21,8 +20,6 @@ package Meadowsweet.Persistence is
    No_Order : constant Order_Spec := (1 .. 0 => <>);
 
    No_Limit : constant Integer := -1;
-
-   type Query is private;
 
    type Bean_Mapping is private;
 
@@ -153,8 +150,12 @@ package Meadowsweet.Persistence is
       --  3. The parent of the child bean is derived from Composite_Bean
       --     implementing Get_Child so that it returns the child bean.
       function Get
-        (Q : Query;
+        (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Root_Table : String;
+         Distinct : Boolean := False;
+         Where : Expression := Null_Expression;
+         Joins : String_Array := (1 .. 0 => <>);
+         Order : Order_Spec := No_Order;
          Mappings : Bean_Mappings;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
          := GNATCOLL.SQL.Exec.No_Parameters)
@@ -213,18 +214,6 @@ private
 
    type Expression is record
       Ref : Expression_Pointers.Ref;
-   end record;
-
-   package Order_Element_Vectors is new Ada.Containers.Vectors
-     (Index_Type => Positive,
-      Element_Type => Order_Element);
-
-   type Query is record
-      DB : GNATCOLL.SQL.Exec.Database_Connection;
-      Distinct : Boolean;
-      Where : Expression;
-      Joins : Name_Vectors.Vector;
-      Order : Order_Element_Vectors.Vector;
    end record;
 
    Null_Expression : constant Expression
