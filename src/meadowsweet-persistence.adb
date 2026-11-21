@@ -348,19 +348,51 @@ package body Meadowsweet.Persistence is
       Do_Merge (Composite_Bean'Class (Target), Composite_Bean'Class (Source));
    end Merge;
 
-   package body Tables is
-
-      procedure Insert
-        (DB : Database_Connection;
-         Table_Name : String;
-         Mappings : Bean_Mappings;
-         Bean : Bean_Type'Class)
-      is
-         Property_Names : constant Meadowsweet.String_Array := Bean.Property_Names;
-         Q : Unbounded_String := To_Unbounded_String ("INSERT INTO ")
-           & Table_Name & '(';
-         Params_Length : Natural := 0;
+   procedure Insert
+     (DB : Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Bean : Meadowsweet.Inspectable_Bean'Class)
+   is
+      Property_Names : constant Meadowsweet.String_Array := Bean.Property_Names;
+      Q : Unbounded_String := To_Unbounded_String ("INSERT INTO ")
+        & Table_Name & '(';
+      Params_Length : Natural := 0;
+      Mapping_Index : Natural;
+   begin
+      for I in Property_Names'Range loop
+         Mapping_Index := Find_Mapping (Mappings,
+                                        To_String (Property_Names (I)));
+         if Mapping_Index = 0
+           or else (not Mappings (Mapping_Index).Is_Primary_Key
+                    and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
+         then
+            if Params_Length > 0 then
+               Append (Q, ", ");
+            end if;
+            if Mapping_Index = 0 then
+               Append (Q, Property_Names (I));
+            else
+               Append (Q, Mappings (Mapping_Index).Column);
+            end if;
+            Params_Length := Params_Length + 1;
+         end if;
+      end loop;
+      Append (Q, ") VALUES (");
+      for I in 1 .. Params_Length loop
+         Append (Q, DB.Parameter_String (I, ""));
+         if I < Params_Length then
+            Append (Q, ", ");
+         end if;
+      end loop;
+      Append (Q, ')');
+      declare
+         P : constant Prepared_Statement :=
+           Prepare (To_String (Q), On_Server => True);
+         Params : SQL_Parameters (1 .. Params_Length);
+         J : Natural := 1;
          Mapping_Index : Natural;
+         Value : Object;
       begin
          for I in Property_Names'Range loop
             Mapping_Index := Find_Mapping (Mappings,
@@ -369,144 +401,137 @@ package body Meadowsweet.Persistence is
               or else (not Mappings (Mapping_Index).Is_Primary_Key
                        and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
             then
-               if Params_Length > 0 then
-                  Append (Q, ", ");
+               if Get_Type (Value) /= TYPE_ARRAY then
+                  Params (J) := To_Parameter
+                    (Bean.Get_Value (To_String (Property_Names (I))),
+                     (if Mapping_Index > 0 then Mappings (Mapping_Index)
+                      else Null_Mapping));
+                  J := J + 1;
                end if;
-               if Mapping_Index = 0 then
-                  Append (Q, Property_Names (I));
-               else
-                  Append (Q, Mappings (Mapping_Index).Column);
-               end if;
-               Params_Length := Params_Length + 1;
             end if;
          end loop;
-         Append (Q, ") VALUES (");
-         for I in 1 .. Params_Length loop
-            Append (Q, DB.Parameter_String (I, ""));
-            if I < Params_Length then
+         Execute (DB, P, Params);
+      end;
+      Commit_Or_Rollback (DB);
+      if not Success (DB) then
+         raise Persistence_Error with Last_Error_Message (DB);
+      end if;
+   end Insert;
+
+   procedure Update
+     (DB : Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Bean : Meadowsweet.Inspectable_Bean'Class)
+   is
+      Property_Names : constant Meadowsweet.String_Array := Bean.Property_Names;
+      Q : Unbounded_String := To_Unbounded_String ("UPDATE ")
+        & Table_Name & " SET ";
+      Params : SQL_Parameters (1 .. Property_Names'Length);
+      J : Positive;
+      Key_Value : Object;
+      Primary_Key : constant String := Get_Primary_Key (Mappings);
+      Mapping_Index : Natural;
+   begin
+      if Primary_Key = "" then
+         raise Persistence_Error with "Update requires primary key";
+      end if;
+      Key_Value := Bean.Get_Value (Primary_Key);
+      if Key_Value = Null_Object then
+         raise Persistence_Error with "No key value provided";
+      end if;
+      J := 1;
+      for I in Property_Names'Range loop
+         if Property_Names (I) /= Primary_Key then
+            if J > 1 then
                Append (Q, ", ");
             end if;
-         end loop;
-         Append (Q, ')');
-         declare
-            P : constant Prepared_Statement :=
-              Prepare (To_String (Q), On_Server => True);
-            Params : SQL_Parameters (1 .. Params_Length);
-            J : Natural := 1;
-            Mapping_Index : Natural;
-            Value : Object;
-         begin
-            for I in Property_Names'Range loop
-               Mapping_Index := Find_Mapping (Mappings,
-                                              To_String (Property_Names (I)));
+            Append (Q, Property_Names (I));
+            Append (Q, "=");
+            Append (Q, DB.Parameter_String (J, ""));
+            J := J + 1;
+         end if;
+      end loop;
+      Append (Q, " WHERE ");
+      Append (Q, Primary_Key);
+      Append (Q, '=');
+      Append (Q, DB.Parameter_String (J, ""));
+      J := 1;
+      for I in Property_Names'Range loop
+         if Property_Names (I) /= Primary_Key then
             Mapping_Index := Find_Mapping (Mappings,
                                            To_String (Property_Names (I)));
-               if Mapping_Index = 0
-                 or else (not Mappings (Mapping_Index).Is_Primary_Key
-                          and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
-               then
-                  if Get_Type (Value) /= TYPE_ARRAY then
-                     Params (J) := To_Parameter
-                       (Bean.Get_Value (To_String (Property_Names (I))),
-                        (if Mapping_Index > 0 then Mappings (Mapping_Index)
-                         else Null_Mapping));
-                     J := J + 1;
-                  end if;
-               end if;
-            end loop;
-            Execute (DB, P, Params);
-         end;
-         Commit_Or_Rollback (DB);
-         if not Success (DB) then
-            raise Persistence_Error with Last_Error_Message (DB);
+            Params (J) := To_Parameter
+              (Bean.Get_Value (To_String (Property_Names (I))),
+               (if Mapping_Index > 0 then Mappings (Mapping_Index)
+                else Null_Mapping));
+            J := J + 1;
          end if;
+      end loop;
+      Params (Params'Last) := To_Parameter (Key_Value, Null_Mapping);
+      declare
+         P : constant Prepared_Statement :=
+           GNATCOLL.SQL.Exec.Prepare (To_String (Q),
+                                      On_Server => True);
+      begin
+         Execute (DB, P, Params);
+      end;
+      Commit_Or_Rollback (DB);
+      if not Success (DB) then
+         raise Persistence_Error with Last_Error_Message (DB);
+      end if;
+   end Update;
+
+   procedure Delete
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Key : Integer)
+   is
+      Primary_Key : constant String := Get_Primary_Key (Mappings);
+      P : Prepared_Statement;
+   begin
+      if Primary_Key = "" then
+         raise Persistence_Error with "Update requires primary key";
+      end if;
+      P := GNATCOLL.SQL.Exec.Prepare
+        ("DELETE FROM " & Table_Name & " WHERE " & Primary_Key
+         & " =" & DB.Parameter_String (1, ""),
+         On_Server => True);
+      Execute (DB, P, (1 => +Key));
+      Commit_Or_Rollback (DB);
+      if not Success (DB) then
+         raise Persistence_Error with Last_Error_Message (DB);
+      end if;
+   end Delete;
+
+   package body Tables is
+
+      procedure Insert
+        (DB : Database_Connection;
+         Table_Name : String;
+         Mappings : Bean_Mappings;
+         Bean : Bean_Type'Class) is
+      begin
+         Meadowsweet.Persistence.Insert (DB, Table_Name, Mappings, Bean);
       end Insert;
 
       procedure Update
         (DB : Database_Connection;
          Table_Name : String;
          Mappings : Bean_Mappings;
-         Bean : Bean_Type'Class)
-      is
-         Property_Names : constant Meadowsweet.String_Array := Bean.Property_Names;
-         Q : Unbounded_String := To_Unbounded_String ("UPDATE ")
-           & Table_Name & " SET ";
-         Params : SQL_Parameters (1 .. Property_Names'Length);
-         J : Positive;
-         Key_Value : Object;
-         Primary_Key : constant String := Get_Primary_Key (Mappings);
-         Mapping_Index : Natural;
+         Bean : Bean_Type'Class) is
       begin
-         if Primary_Key = "" then
-            raise Persistence_Error with "Update requires primary key";
-         end if;
-         Key_Value := Bean.Get_Value (Primary_Key);
-         if Key_Value = Null_Object then
-            raise Persistence_Error with "No key value provided";
-         end if;
-         J := 1;
-         for I in Property_Names'Range loop
-            if Property_Names (I) /= Primary_Key then
-               if J > 1 then
-                  Append (Q, ", ");
-               end if;
-               Append (Q, Property_Names (I));
-               Append (Q, "=");
-               Append (Q, DB.Parameter_String (J, ""));
-               J := J + 1;
-            end if;
-         end loop;
-         Append (Q, " WHERE ");
-         Append (Q, Primary_Key);
-         Append (Q, '=');
-         Append (Q, DB.Parameter_String (J, ""));
-         J := 1;
-         for I in Property_Names'Range loop
-            if Property_Names (I) /= Primary_Key then
-               Mapping_Index := Find_Mapping (Mappings,
-                                              To_String (Property_Names (I)));
-               Params (J) := To_Parameter
-                 (Bean.Get_Value (To_String (Property_Names (I))),
-                  (if Mapping_Index > 0 then Mappings (Mapping_Index)
-                   else Null_Mapping));
-               J := J + 1;
-            end if;
-         end loop;
-         Params (Params'Last) := To_Parameter (Key_Value, Null_Mapping);
-         declare
-            P : constant Prepared_Statement :=
-              GNATCOLL.SQL.Exec.Prepare (To_String (Q),
-                                         On_Server => True);
-         begin
-            Execute (DB, P, Params);
-         end;
-         Commit_Or_Rollback (DB);
-         if not Success (DB) then
-            raise Persistence_Error with Last_Error_Message (DB);
-         end if;
+         Meadowsweet.Persistence.Update (DB, Table_Name, Mappings, Bean);
       end Update;
 
       procedure Delete
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
          Mappings : Bean_Mappings;
-         Key : Integer)
-      is
-         Primary_Key : constant String := Get_Primary_Key (Mappings);
-         P : Prepared_Statement;
+         Key : Integer) is
       begin
-         if Primary_Key = "" then
-            raise Persistence_Error with "Update requires primary key";
-         end if;
-         P := GNATCOLL.SQL.Exec.Prepare
-             ("DELETE FROM " & Table_Name & " WHERE " & Primary_Key
-              & " =" & DB.Parameter_String (1, ""),
-              On_Server => True);
-         Execute (DB, P, (1 => +Key));
-         Commit_Or_Rollback (DB);
-         if not Success (DB) then
-            raise Persistence_Error with Last_Error_Message (DB);
-         end if;
+         Meadowsweet.Persistence.Delete (DB, Table_Name, Mappings, Key);
       end Delete;
 
       function Get

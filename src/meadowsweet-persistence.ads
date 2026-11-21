@@ -35,7 +35,7 @@ package Meadowsweet.Persistence is
    Null_Expression : constant Expression;
 
    type Bean_Factory is access function
-     return access Meadowsweet.Inspectable_Bean'Class;
+     return access Inspectable_Bean'Class;
 
    function Mapping (Property_Name : String;
                      Property_Type : Util.Beans.Objects.Data_Type;
@@ -55,6 +55,9 @@ package Meadowsweet.Persistence is
       Is_Auto_Generated : Boolean)
      return Bean_Mapping;
 
+   --  Defines a mapping of a bean property refering to columns in another table.
+   --  The property must be a Vector_Bean. The source bean must implement
+   --  Composite_Bean and implement Get_Bean and Set_Bean for the property.
    function To_Many_Mapping
      (Property_Name : String;
       Target_Table : String;
@@ -63,6 +66,27 @@ package Meadowsweet.Persistence is
      return Bean_Mapping;
 
    type String_Array is array (Positive range <>) of Unbounded_String;
+
+   --  Inserts a single record into the table Table_Name.
+   procedure Insert
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Bean : Meadowsweet.Inspectable_Bean'Class);
+
+   --  Updates a single record using the key Primary_Key.
+   procedure Update
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Bean : Meadowsweet.Inspectable_Bean'Class);
+
+   --  Deletes a single record using the key Primary_Key.
+   procedure Delete
+     (DB : GNATCOLL.SQL.Exec.Database_Connection;
+      Table_Name : String;
+      Mappings : Bean_Mappings;
+      Key : Integer);
 
    generic
 
