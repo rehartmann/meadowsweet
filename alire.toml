@@ -10,7 +10,7 @@ website = "https://github.com/rehartmann/meadowsweet"
 tags = ["mvc", "web"]
 
 [[depends-on]]
-servletada = "^1.8.1"
+servletada = "^1.8.2"
 
 [[depends-on]]
 gnatcoll_sql = "^25.0.0"
