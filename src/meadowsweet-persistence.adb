@@ -366,7 +366,8 @@ package body Meadowsweet.Persistence is
             Mapping_Index := Find_Mapping (Mappings,
                                            To_String (Property_Names (I)));
             if Mapping_Index = 0
-              or else not Mappings (Mapping_Index).Is_Primary_Key
+              or else (not Mappings (Mapping_Index).Is_Primary_Key
+                       and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
             then
                if Params_Length > 0 then
                   Append (Q, ", ");
@@ -393,19 +394,24 @@ package body Meadowsweet.Persistence is
             Params : SQL_Parameters (1 .. Params_Length);
             J : Natural := 1;
             Mapping_Index : Natural;
+            Value : Object;
          begin
             for I in Property_Names'Range loop
                Mapping_Index := Find_Mapping (Mappings,
                                               To_String (Property_Names (I)));
-
+            Mapping_Index := Find_Mapping (Mappings,
+                                           To_String (Property_Names (I)));
                if Mapping_Index = 0
-                 or else not Mappings (Mapping_Index).Is_Auto_Generated
+                 or else (not Mappings (Mapping_Index).Is_Primary_Key
+                          and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
                then
-                  Params (J) := To_Parameter
-                    (Bean.Get_Value (To_String (Property_Names (I))),
-                     (if Mapping_Index > 0 then Mappings (Mapping_Index)
-                      else Null_Mapping));
-                  J := J + 1;
+                  if Get_Type (Value) /= TYPE_ARRAY then
+                     Params (J) := To_Parameter
+                       (Bean.Get_Value (To_String (Property_Names (I))),
+                        (if Mapping_Index > 0 then Mappings (Mapping_Index)
+                         else Null_Mapping));
+                     J := J + 1;
+                  end if;
                end if;
             end loop;
             Execute (DB, P, Params);
