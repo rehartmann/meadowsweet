@@ -93,7 +93,7 @@ package Meadowsweet.Persistence is
 
       type Bean_Array is array (Positive range <>) of Bean_Type;
 
-      --  Reads a single record from the table Table_Name.
+      --  Reads a single record from the table Table_Name by key.
       function Get
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
@@ -137,7 +137,7 @@ package Meadowsweet.Persistence is
            return Bean_Type;
          Order : Order_Spec := No_Order;
          Limit : Integer := No_Limit;
-         Offset : Integer := -1)
+         Offset : Integer := 0)
          return Bean_Array;
 
       --  Reads records from table Root_Table and
@@ -156,12 +156,14 @@ package Meadowsweet.Persistence is
          Where : Expression := Null_Expression;
          Joins : String_Array := (1 .. 0 => <>);
          Order : Order_Spec := No_Order;
+         Limit : Integer := No_Limit;
+         Offset : Integer := 0;
          Mappings : Bean_Mappings;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
          := GNATCOLL.SQL.Exec.No_Parameters)
          return Bean_Array;
 
-         --  Inserts a single record into the table Table_Name.
+      --  Inserts a single record into the table Table_Name.
       procedure Insert
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
@@ -202,12 +204,15 @@ private
 
    No_Mappings : constant Bean_Mappings := (1 .. 0 => <>);
 
-   type Expression_Impl is interface;
+   type Expression_Impl is abstract tagged null record;
 
    function To_SQL (Self : Expression_Impl;
                     Mappings : Bean_Mappings)
                     return String
                     is abstract;
+
+   function Max_Parameter_No (Self : Expression_Impl)
+                              return Natural;
 
    package Expression_Pointers is new GNATCOLL.Refcount.Shared_Pointers
      (Expression_Impl'Class);

@@ -619,7 +619,7 @@ package body Meadowsweet.Persistence is
            return Bean_Type;
          Order : Order_Spec := No_Order;
          Limit : Integer := No_Limit;
-         Offset : Integer := -1)
+         Offset : Integer := 0)
          return Bean_Array
       is
          Q : Unbounded_String := To_Unbounded_String
@@ -643,7 +643,7 @@ package body Meadowsweet.Persistence is
             Param_Length := Param_Length + 1;
             Append (Q, DB.Parameter_String (Param_Length, ""));
          end if;
-         if Offset /= -1 then
+         if Offset /= 0 then
             Append (Q, " OFFSET ");
             Param_Length := Param_Length + 1;
             Append (Q, DB.Parameter_String (Param_Length, ""));
@@ -656,7 +656,7 @@ package body Meadowsweet.Persistence is
                Params (I) := +Limit;
                I := I + 1;
             end if;
-            if Offset /= -1 then
+            if Offset /= 0 then
                Params (I) := +Offset;
             end if;
             return Get (DB, To_String (Q), Params, From_Cursor);
@@ -674,6 +674,8 @@ package body Meadowsweet.Persistence is
          Where : Expression := Null_Expression;
          Joins : String_Array := (1 .. 0 => <>);
          Order : Order_Spec := No_Order;
+         Limit : Integer := No_Limit;
+         Offset : Integer := 0;
          Mappings : Bean_Mappings;
          Params : GNATCOLL.SQL.Exec.SQL_Parameters
          := GNATCOLL.SQL.Exec.No_Parameters)
@@ -830,35 +832,76 @@ package body Meadowsweet.Persistence is
          B : Bean_Type;
          Column_Count : Positive;
          Beans : Bean_Vectors.Vector;
+         Ext_Param_Length : Natural := 0;
+         Limit_By_SQL : constant Boolean := Joins'Length = 0;
       begin
          --  Create children because Scalar_Properties and To_SQL accesses them
          Create_Children (B, Joins, Mappings);
          Property_Names := Scalar_Properties (B, Joins, Mappings);
+         if Limit_By_SQL then
+            if Limit /= No_Limit then
+               Ext_Param_Length := Ext_Param_Length + 1;
+            end if;
+            if Offset /= 0 then
+               Ext_Param_Length := Ext_Param_Length + 1;
+            end if;
+         end if;
          declare
             SQL : constant String := Meadowsweet.Persistence.Queries.To_SQL
-              (Root_Table, Distinct, Joins, Where, Order, Mappings, B, Column_Count);
+              (DB, Root_Table, Distinct, Joins, Where, Order,
+               (if Limit_By_SQL then Limit else No_Limit),
+               (if Limit_By_SQL then Offset else 0),
+               Mappings, B, Column_Count);
             P : constant Prepared_Statement :=
               GNATCOLL.SQL.Exec.Prepare (SQL, On_Server => True);
+            Ext_Params : SQL_Parameters (1 .. Ext_Param_Length);
+            I : Positive := 1;
+            Bean_Count : Natural := 0;
          begin
             Ada.Text_IO.Put_Line ("SQL: " & SQL);
-            R.Fetch (DB, P, Params);
+            if Limit_By_SQL then
+               if Limit /= No_Limit then
+                  Ext_Params (I) := +Limit;
+                  I := I + 1;
+               end if;
+               if Offset /= 0 then
+                  Ext_Params (I) := +Offset;
+               end if;
+            end if;
+            R.Fetch (DB, P, Params & Ext_Params);
             if not Success (DB) then
                raise Persistence_Error with Last_Error_Message (DB);
             end if;
             while Has_Row (R) loop
-               --  Insert bean, then modify to avoid copying the bean and its children
+                  --  Insert bean, then modify to avoid copying the bean and its children
                Beans.Append (B);
                Bean_Vectors.Update_Element (Beans, Bean_Vectors.Last_Index (Beans),
                                             Get_Row'Access);
                --  Try to merge the bean with the previous bean
                if Beans.Length >= 2
                  and then Is_Mergeable
-                     (Beans (Positive (Beans.Length) - 1),
-                      Beans (Positive (Beans.Length)))
+                   (Beans (Positive (Beans.Length) - 1),
+                    Beans (Positive (Beans.Length)))
                then
                   Merge (Beans.Reference (Positive (Beans.Length) - 1),
                          Beans.Reference (Positive (Beans.Length)));
                   Beans.Delete_Last;
+               else
+                  if not Limit_By_SQL then
+                     Bean_Count := Bean_Count + 1;
+                     if Limit /= No_Limit
+                       and then Bean_Count > Offset + Limit
+                     then
+                        --  Beyond limit, drop bean
+                        --  and stop reading
+                        Beans.Delete_Last;
+                        exit;
+                     end if;
+                     if Bean_Count <= Offset then
+                        --  Offet not reached, skip bean
+                        Beans.Delete_Last;
+                     end if;
+                  end if;
                end if;
                Next (R);
             end loop;
@@ -900,5 +943,11 @@ package body Meadowsweet.Persistence is
       end loop;
       return "";
    end Get_Primary_Key;
+
+   function Max_Parameter_No (Self : Expression_Impl)
+                              return Natural is
+   begin
+      return 0;
+   end Max_Parameter_No;
 
 end Meadowsweet.Persistence;

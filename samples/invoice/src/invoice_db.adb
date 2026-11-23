@@ -226,7 +226,9 @@ package body Invoice_DB is
            Root_Table => "invoices",
            Distinct => True,
            Joins => (1 => To_Unbounded_String ("recipient")),
-           Mappings => Invoice_Mappings);
+           Mappings => Invoice_Mappings,
+           Order => (1 => (Name => To_Unbounded_String ("id"),
+                           Direction => Asc)));
    begin
       for I in Objects'Range loop
          Invoice_Vectors.Append (Result, Objects (I));

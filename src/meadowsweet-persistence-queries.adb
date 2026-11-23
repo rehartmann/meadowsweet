@@ -3,6 +3,7 @@ with Ada.Strings.Fixed;
 package body Meadowsweet.Persistence.Queries is
 
    use Ada.Strings.Fixed;
+   use Meadowsweet.Persistence.Expression_Pointers;
 
    type String_Constant is new Expression_Impl with record
       Value : Unbounded_String;
@@ -50,6 +51,10 @@ package body Meadowsweet.Persistence.Queries is
       Left, Right : Expression;
    end record;
 
+   overriding function Max_Parameter_No
+     (Self : Binary_Operator)
+      return Natural;
+
    overriding function To_SQL
      (Self : Binary_Operator;
       Mappings : Bean_Mappings)
@@ -64,6 +69,16 @@ package body Meadowsweet.Persistence.Queries is
         & Expression_Pointers.Get (Self.Right.Ref).To_SQL (Mappings)
         & ")";
    end To_SQL;
+
+   overriding function Max_Parameter_No
+     (Self : Binary_Operator)
+      return Natural
+   is
+      Max_Left : constant Natural := Self.Left.Ref.Get.Max_Parameter_No;
+      Max_Right : constant Natural := Self.Right.Ref.Get.Max_Parameter_No;
+   begin
+      return (if Max_Left >= Max_Right then Max_Left else Max_Right);
+   end Max_Parameter_No;
 
    type Binary_Operator_Access is access Binary_Operator;
 
@@ -111,10 +126,15 @@ package body Meadowsweet.Persistence.Queries is
    type Property_Value_Access is access Property_Value;
 
    type Query_Parameter is new Expression_Impl with record
+      Position : Positive;
       S : Unbounded_String;
    end record;
 
    type Query_Parameter_Access is access Query_Parameter;
+
+   overriding function Max_Parameter_No
+     (Self : Query_Parameter)
+      return Natural;
 
    overriding function To_SQL (Self : Query_Parameter;
                                Mappings : Bean_Mappings)
@@ -122,6 +142,13 @@ package body Meadowsweet.Persistence.Queries is
    begin
       return To_String (Self.S);
    end To_SQL;
+
+   overriding function Max_Parameter_No
+     (Self : Query_Parameter)
+      return Natural is
+   begin
+      return Self.Position;
+   end Max_Parameter_No;
 
    function "+" (Value : String)
                  return Expression
@@ -299,7 +326,8 @@ package body Meadowsweet.Persistence.Queries is
    is
       Result : Expression;
       Exp : constant Query_Parameter_Access := new Query_Parameter'
-        (S => To_Unbounded_String (DB.Parameter_String (Position, "")));
+        (Position => Position,
+         S => To_Unbounded_String (DB.Parameter_String (Position, "")));
    begin
       Expression_Pointers.Set (Result.Ref, Exp.all);
       return Result;
@@ -384,11 +412,14 @@ package body Meadowsweet.Persistence.Queries is
       return To_String (Result);
    end To_SQL;
 
-   function To_SQL (Root_Table : String;
+   function To_SQL (DB : GNATCOLL.SQL.Exec.Database_Connection;
+                    Root_Table : String;
                     Distinct : Boolean;
                     Joins : String_Array;
                     Where : Expression;
                     Order : Order_Spec;
+                    Limit : Integer;
+                    Offset : Integer;
                     Mappings : Bean_Mappings;
                     B : in out Inspectable_Bean'Class;
                     Column_Count : out Positive)
@@ -398,6 +429,7 @@ package body Meadowsweet.Persistence.Queries is
       Mapping_Index, Source_Mapping_Index : Natural;
       Separator_Index : Natural;
       Column_Count_Total : Natural := 0;
+      Param_No : Natural;
    begin
       if Distinct then
          Append (SQL, "DISTINCT ");
@@ -490,6 +522,7 @@ package body Meadowsweet.Persistence.Queries is
          end if;
          Append (SQL, ' ');
       end loop;
+      Column_Count := Column_Count_Total;
       if not Where.Ref.Is_Null then
          Append (SQL, " WHERE ");
          Append (SQL, Where.Ref.Get.To_SQL (Mappings));
@@ -498,7 +531,18 @@ package body Meadowsweet.Persistence.Queries is
          Append (SQL, ' ');
          Append (SQL, To_SQL (Order, Mappings));
       end if;
-      Column_Count := Column_Count_Total;
+      Param_No := (if Where.Ref = Null_Ref then 0
+                   else Where.Ref.Get.Max_Parameter_No);
+      if Limit /= No_Limit then
+         Param_No := Param_No + 1;
+         Append (SQL, " LIMIT ");
+         Append (SQL, DB.Parameter_String (Param_No, ""));
+      end if;
+      if Offset /= 0 then
+         Param_No := Param_No + 1;
+         Append (SQL, " OFFSET ");
+         Append (SQL, DB.Parameter_String (Param_No, ""));
+      end if;
       return To_String (SQL);
    end To_SQL;
 

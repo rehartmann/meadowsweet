@@ -45,6 +45,12 @@ package Meadowsweet.Persistence.Queries is
                   Right : Expression)
                   return Expression;
 
+   type Expression_Array is array (Positive range <>) of Expression;
+
+   --  function Contains (Right : Expression_Array;
+   --                     Left : Expression)
+   --                     return Expression;
+
    function Get_Value (Name : String)
                        return Expression;
 
@@ -52,11 +58,14 @@ package Meadowsweet.Persistence.Queries is
                        Position : Positive)
                        return Expression;
 
-   function To_SQL (Root_Table : String;
+   function To_SQL (DB : GNATCOLL.SQL.Exec.Database_Connection;
+                    Root_Table : String;
                     Distinct : Boolean;
                     Joins : String_Array;
                     Where : Expression;
                     Order : Order_Spec;
+                    Limit : Integer;
+                    Offset : Integer;
                     Mappings : Bean_Mappings;
                     B : in out Meadowsweet.Inspectable_Bean'Class;
                     Column_Count : out Positive)
