@@ -15,6 +15,8 @@
 <tr>
 <td>{{ item.product }}
 <td>{{ item.quantity }}
+<td>
+<a href="/invoice/invoices/{{ id }}/items/{{ item.id}}?_method=DELETE">Delete</a>
 {% endfor %}
 </table>
 </div>

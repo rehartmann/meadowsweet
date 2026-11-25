@@ -13,6 +13,8 @@ package body Phonebook_DB is
    Mappings : constant Bean_Mappings
      := (1 => Primary_Key_Mapping (
          Property_Name => "id",
+         Table => "addresses",
+         Column => "id",
          Is_Auto_Generated => True));
 
    function Address_From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)

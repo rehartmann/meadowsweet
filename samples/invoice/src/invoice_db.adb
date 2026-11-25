@@ -19,9 +19,11 @@ package body Invoice_DB is
 
    Customer_Mappings : constant Bean_Mappings
      := (1 => Primary_Key_Mapping
-          (Property_Name => "id",
-           Property_Type => Util.Beans.Objects.TYPE_INTEGER,
-           Is_Auto_Generated => True));
+         (Property_Name => "id",
+          Column => "id",
+          Table => "customers",
+          Property_Type => Util.Beans.Objects.TYPE_INTEGER,
+          Is_Auto_Generated => True));
 
    function Create_Item return access Meadowsweet.Inspectable_Bean'Class is
    begin
@@ -31,20 +33,28 @@ package body Invoice_DB is
    Invoice_Mappings : constant Bean_Mappings
      := (Primary_Key_Mapping
            (Property_Name => "id",
+            Column => "id",
+            Table => "invoices",
             Property_Type => Util.Beans.Objects.TYPE_INTEGER,
             Is_Auto_Generated => True),
          Mapping
            (Property_Name => "recipient",
             Property_Type => Util.Beans.Objects.TYPE_BEAN,
+            Table => "customers",
             Column => "customer_id",
-            Target_Table => "customers",
             Factory => Create_Customer'Access,
-            Target_Primary_Key => "id"),
+            Target_Column => "id"),
          To_Many_Mapping
            (Property_Name => "items",
-            Target_Table => "items",
+            Table => "items",
             Target_Column => "invoice_id",
-            Factory => Create_Item'Access)
+            Factory => Create_Item'Access),
+         Primary_Key_Mapping
+           (Property_Name => "items.id",
+            Column => "id",
+            Table => "items",
+            Property_Type => Util.Beans.Objects.TYPE_INTEGER,
+            Is_Auto_Generated => True)
         );
 
    function Customer_From_Cursor (R : GNATCOLL.SQL.Exec.Forward_Cursor'Class)
@@ -161,7 +171,7 @@ package body Invoice_DB is
          return To_Object (Customer_Ptr, DYNAMIC);
       end if;
       if Name = "items" then
-         --  Convert vector to array bean
+         --  Convert vector to array
          return Meadowsweet.Beans.To_Object (From.Items);
       end if;
       return Null_Object;
@@ -249,6 +259,13 @@ package body Invoice_DB is
    begin
       Customer_Persistence.Delete (DB, "invoices", Invoice_Mappings, Id);
    end Delete_Invoice;
+
+   procedure Delete_Item (Id : Positive) is
+      DB : constant Database_Connection
+        := Tasking.Get_Task_Connection (DB_Descr);
+   begin
+      Customer_Persistence.Delete (DB, "items", Invoice_Mappings, Id);
+   end Delete_Item;
 
    overriding
    function Property_Names (From : Item)

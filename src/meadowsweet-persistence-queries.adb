@@ -382,7 +382,7 @@ package body Meadowsweet.Persistence.Queries is
             Mapping_Index := Find_Mapping
               (Mappings, To_String (Order (I).Name) (1 .. Separator_Index - 1));
             if Mapping_Index = 0
-              or else Mappings (Mapping_Index).Target_Table = ""
+              or else Mappings (Mapping_Index).Table = ""
             then
                raise Meadowsweet.Persistence.Persistence_Error
                with To_String (Order (I).Name) & " is not mapped to any table";
@@ -461,21 +461,21 @@ package body Meadowsweet.Persistence.Queries is
       Append (SQL, Root_Table);
       Append (SQL, " T0 ");
       for I in Joins'Range loop
-         if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
+         Mapping_Index := Find_Mapping (Mappings,
+                                        To_String (Joins (I)));
+         if Mapping_Index = 0
+           or else Mappings (Mapping_Index).Table = ""
+         then
+            raise Meadowsweet.Persistence.Persistence_Error
+            with To_String (Joins (I)) & " is not mapped to any table";
+         end if;
+         if Mappings (Mapping_Index).Column = Null_Unbounded_String
          then
             --  One-to-many relationship
             Append (SQL, "LEFT ");
          end if;
          Append (SQL, "JOIN ");
-         Mapping_Index := Find_Mapping (Mappings,
-                                        To_String (Joins (I)));
-         if Mapping_Index = 0
-           or else Mappings (Mapping_Index).Target_Table = ""
-         then
-            raise Meadowsweet.Persistence.Persistence_Error
-            with To_String (Joins (I)) & " is not mapped to any table";
-         end if;
-         Append (SQL, Mappings (Mapping_Index).Target_Table);
+         Append (SQL, Mappings (Mapping_Index).Table);
 
          Append (SQL, " T");
          Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
@@ -492,7 +492,7 @@ package body Meadowsweet.Persistence.Queries is
               (Mappings,
                Slice (Joins (I), 1, Separator_Index - 1));
             if Source_Mapping_Index = 0
-              or else Mappings (Source_Mapping_Index).Target_Table = ""
+              or else Mappings (Source_Mapping_Index).Table = ""
             then
                raise Meadowsweet.Persistence.Persistence_Error
                with Slice (Joins (I), 1, Separator_Index - 1)
@@ -502,7 +502,7 @@ package body Meadowsweet.Persistence.Queries is
             Append (SQL, Trim (Source_Mapping_Index'Image, Ada.Strings.Both));
             Append (SQL, '.');
          end if;
-         if Mappings (Mapping_Index).Target_Column /= Null_Unbounded_String
+         if Mappings (Mapping_Index).Column = Null_Unbounded_String
          then
             Append (SQL, Get_Primary_Key (Mappings,
                     (if Separator_Index = 0 then ""
@@ -514,12 +514,13 @@ package body Meadowsweet.Persistence.Queries is
          Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
                  Ada.Strings.Both));
          Append (SQL, '.');
-         if Mappings (Mapping_Index).Target_Column /= Null_Unbounded_String
+         if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
          then
-            Append (SQL, Mappings (Mapping_Index).Target_Column);
-         else
-            Append (SQL, Mappings (Mapping_Index).Target_Primary_Key);
+            raise Meadowsweet.Persistence.Persistence_Error
+            with "no valid mapping for join " & To_String (Joins (I));
          end if;
+
+         Append (SQL, Mappings (Mapping_Index).Target_Column);
          Append (SQL, ' ');
       end loop;
       Column_Count := Column_Count_Total;

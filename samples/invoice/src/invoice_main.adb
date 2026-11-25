@@ -46,6 +46,9 @@ begin
                   Invoice_Actions.Invoices_Show'Access);
    Meadowsweet.Add_Route (Context, "DELETE", "/invoices/{id}",
                   Invoice_Actions.Invoices_Delete'Access);
+   Meadowsweet.Add_Route (Context,
+                          "DELETE", "/invoices/{invoice-id}/items/{item-id}",
+                          Invoice_Actions.Invoices_Item_Delete'Access);
 
    WS.Start;
    delay 6000.0;

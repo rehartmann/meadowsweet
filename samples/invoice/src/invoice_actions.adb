@@ -173,20 +173,40 @@ package body Invoice_Actions is
       Id := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
       Invoice_DB.Get (Id, Inv);
       Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
---   exception
---      when Constraint_Error =>
---         Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
+   exception
+      when Constraint_Error =>
+         Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
    end Invoices_Show;
 
    procedure Invoices_Delete
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class)
    is
-      Id : Positive;
+      Id : constant Positive
+        := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
    begin
-      Id := Positive'Value (Meadowsweet.Get_Path_Parameter (Request, "id"));
       Invoice_DB.Delete_Invoice (Id);
       Response.Send_Redirect ("/invoice/invoices");
    end Invoices_Delete;
+
+   procedure Invoices_Item_Delete
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class)
+   is
+      Item_Id : constant Positive
+        := Positive'Value (Meadowsweet.Get_Path_Parameter (Request,
+                                                          "item-id"));
+      Invoice_Id : constant Positive
+        := Positive'Value (Meadowsweet.Get_Path_Parameter (Request,
+                                                           "invoice-id"));
+      Inv : Invoice;
+   begin
+      Invoice_DB.Delete_Item (Item_Id);
+      Invoice_DB.Get (Invoice_Id, Inv);
+      Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
+   exception
+      when Constraint_Error =>
+         Response.Send_Error (Servlet.Responses.SC_NOT_FOUND);
+   end Invoices_Item_Delete;
 
 end Invoice_Actions;

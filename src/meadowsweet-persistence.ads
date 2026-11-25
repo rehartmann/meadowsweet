@@ -34,30 +34,32 @@ package Meadowsweet.Persistence is
    type Bean_Factory is access function
      return access Inspectable_Bean'Class;
 
-   function Mapping (Property_Name : String;
-                     Property_Type : Util.Beans.Objects.Data_Type;
-                     Column : String;
-                     Is_Primary_Key : Boolean := False;
-                     Is_Auto_Generated : Boolean := False;
-                     Target_Table : String := "";
-                     Factory : Bean_Factory := null;
-                     Target_Primary_Key : String := "")
-                     return Bean_Mapping;
+   function Mapping
+     (Property_Name : String;
+      Property_Type : Util.Beans.Objects.Data_Type;
+      Is_Primary_Key : Boolean := False;
+      Is_Auto_Generated : Boolean := False;
+      Table : String := "";
+      Column : String;
+      Factory : Bean_Factory := null;
+      Target_Column : String := "")
+      return Bean_Mapping;
 
    function Primary_Key_Mapping
      (Property_Name : String;
       Property_Type : Util.Beans.Objects.Data_Type
       := Util.Beans.Objects.TYPE_INTEGER;
-      Column : String := "";
+      Table : String := "";
+      Column : String;
       Is_Auto_Generated : Boolean)
-     return Bean_Mapping;
+      return Bean_Mapping;
 
    --  Defines a mapping of a bean property refering to columns in another table.
    --  The property must be a Vector_Bean. The source bean must implement
    --  Composite_Bean and implement Get_Bean and Set_Bean for the property.
    function To_Many_Mapping
      (Property_Name : String;
-      Target_Table : String;
+      Table : String;
       Target_Column : String;
       Factory : Bean_Factory)
      return Bean_Mapping;
@@ -71,14 +73,14 @@ package Meadowsweet.Persistence is
       Mappings : Bean_Mappings;
       Bean : Meadowsweet.Inspectable_Bean'Class);
 
-   --  Updates a single record using the key Primary_Key.
+   --  Updates a single record using the primary key.
    procedure Update
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Table_Name : String;
       Mappings : Bean_Mappings;
       Bean : Meadowsweet.Inspectable_Bean'Class);
 
-   --  Deletes a single record using the key Primary_Key.
+   --  Deletes a single record using the primary ley.
    procedure Delete
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Table_Name : String;
@@ -170,14 +172,14 @@ package Meadowsweet.Persistence is
          Mappings : Bean_Mappings;
          Bean : Bean_Type'Class);
 
-      --  Updates a single record using the key Primary_Key.
+      --  Updates a single record using the primary key.
       procedure Update
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
          Mappings : Bean_Mappings;
          Bean : Bean_Type'Class);
 
-      --  Deletes a single record using the key Primary_Key.
+      --  Deletes a single record using the primary key.
       procedure Delete
         (DB : GNATCOLL.SQL.Exec.Database_Connection;
          Table_Name : String;
@@ -193,12 +195,11 @@ private
    type Bean_Mapping is record
       Property_Name : Unbounded_String;
       Property_Type : Util.Beans.Objects.Data_Type;
-      Column : Unbounded_String;
       Is_Primary_Key : Boolean;
       Is_Auto_Generated : Boolean;
-      Target_Table : Unbounded_String := Null_Unbounded_String;
+      Table : Unbounded_String := Null_Unbounded_String;
+      Column : Unbounded_String := Null_Unbounded_String;
       Factory : Bean_Factory := null;
-      Target_Primary_Key : Unbounded_String := Null_Unbounded_String;
       Target_Column : Unbounded_String := Null_Unbounded_String;
    end record;
 

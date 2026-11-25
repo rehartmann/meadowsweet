@@ -19,70 +19,69 @@ package body Meadowsweet.Persistence is
    Null_Mapping : constant Bean_Mapping :=
      (Property_Name => Null_Unbounded_String,
       Property_Type => TYPE_NULL,
-      Column => Null_Unbounded_String,
       Is_Primary_Key => False,
       Is_Auto_Generated => False,
-      Target_Table => Null_Unbounded_String,
+      Table => Null_Unbounded_String,
+      Column => Null_Unbounded_String,
       Factory => null,
-      Target_Primary_Key => Null_Unbounded_String,
       Target_Column => Null_Unbounded_String);
 
-   function Mapping (Property_Name : String;
-                     Property_Type : Util.Beans.Objects.Data_Type;
-                     Column : String;
-                     Is_Primary_Key : Boolean := False;
-                     Is_Auto_Generated : Boolean := False;
-                     Target_Table : String := "";
-                     Factory : Bean_Factory := null;
-                     Target_Primary_Key : String := "")
-                     return Bean_Mapping is
+   function Mapping
+     (Property_Name : String;
+      Property_Type : Util.Beans.Objects.Data_Type;
+      Is_Primary_Key : Boolean := False;
+      Is_Auto_Generated : Boolean := False;
+      Table : String := "";
+      Column : String;
+      Factory : Bean_Factory := null;
+      Target_Column : String := "")
+      return Bean_Mapping is
    begin
       return (Property_Name => To_Unbounded_String (Property_Name),
               Property_Type => Property_Type,
-              Column => To_Unbounded_String (Column),
               Is_Primary_Key => Is_Primary_Key,
               Is_Auto_Generated => Is_Auto_Generated,
-              Target_Table => To_Unbounded_String (Target_Table),
+              Table => To_Unbounded_String (Table),
+              Column => To_Unbounded_String (Column),
               Factory => Factory,
-              Target_Primary_Key => To_Unbounded_String (Target_Primary_Key),
-              Target_Column => Null_Unbounded_String);
+              Target_Column => To_Unbounded_String (Target_Column));
    end Mapping;
 
    function Primary_Key_Mapping
      (Property_Name : String;
-      Property_Type : Util.Beans.Objects.Data_Type := TYPE_INTEGER;
-      Column : String := "";
+      Property_Type : Util.Beans.Objects.Data_Type
+      := Util.Beans.Objects.TYPE_INTEGER;
+      Table : String := "";
+      Column : String;
       Is_Auto_Generated : Boolean)
       return Bean_Mapping is
    begin
       return (Property_Name => To_Unbounded_String (Property_Name),
               Property_Type => Property_Type,
+              Is_Primary_Key => True,
+              Is_Auto_Generated => Is_Auto_Generated,
+              Table => To_Unbounded_String (Table),
               Column => (if Column /= ""
                          then To_Unbounded_String (Column)
                          else To_Unbounded_String (Property_Name)),
-              Is_Primary_Key => True,
-              Is_Auto_Generated => Is_Auto_Generated,
-              Target_Table => Null_Unbounded_String,
               Factory => null,
-              Target_Primary_Key => Null_Unbounded_String,
               Target_Column => Null_Unbounded_String);
    end Primary_Key_Mapping;
 
    function To_Many_Mapping
      (Property_Name : String;
-      Target_Table : String;
+      Table : String;
       Target_Column : String;
       Factory : Bean_Factory)
      return Bean_Mapping is
    begin
       return (Property_Name => To_Unbounded_String (Property_Name),
               Property_Type => TYPE_BEAN,
-              Column => Null_Unbounded_String,
               Is_Primary_Key => False,
               Is_Auto_Generated => False,
-              Target_Table => To_Unbounded_String (Target_Table),
+              Table => To_Unbounded_String (Table),
+              Column => Null_Unbounded_String,
               Factory => Factory,
-              Target_Primary_Key => Null_Unbounded_String,
               Target_Column => To_Unbounded_String (Target_Column));
    end To_Many_Mapping;
 
@@ -112,11 +111,11 @@ package body Meadowsweet.Persistence is
          when TYPE_FLOAT =>
             return +To_Float (Value);
          when TYPE_BEAN =>
-            if Mapping.Target_Primary_Key = Null_Unbounded_String then
+            if Mapping.Target_Column = Null_Unbounded_String then
                raise Persistence_Error with "no target primary key provided for "
                  & To_String (Mapping.Property_Name);
             end if;
-            return To_Parameter (Get_Value (Value, To_String (Mapping.Target_Primary_Key)),
+            return To_Parameter (Get_Value (Value, To_String (Mapping.Target_Column)),
                                  Null_Mapping);
          when TYPE_ARRAY =>
             raise Persistence_Error
@@ -365,7 +364,8 @@ package body Meadowsweet.Persistence is
                                         To_String (Property_Names (I)));
          if Mapping_Index = 0
            or else (not Mappings (Mapping_Index).Is_Primary_Key
-                    and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
+                    and then Mappings (Mapping_Index).Target_Column
+                    /= Null_Unbounded_String)
          then
             if Params_Length > 0 then
                Append (Q, ", ");
@@ -373,7 +373,7 @@ package body Meadowsweet.Persistence is
             if Mapping_Index = 0 then
                Append (Q, Property_Names (I));
             else
-               Append (Q, Mappings (Mapping_Index).Column);
+               Append (Q, Mappings (Mapping_Index).Target_Column);
             end if;
             Params_Length := Params_Length + 1;
          end if;
@@ -399,7 +399,8 @@ package body Meadowsweet.Persistence is
                                            To_String (Property_Names (I)));
             if Mapping_Index = 0
               or else (not Mappings (Mapping_Index).Is_Primary_Key
-                       and then Mappings (Mapping_Index).Column /= Null_Unbounded_String)
+                       and then Mappings (Mapping_Index).Target_Column
+                       /= Null_Unbounded_String)
             then
                if Get_Type (Value) /= TYPE_ARRAY then
                   Params (J) := To_Parameter
@@ -418,6 +419,36 @@ package body Meadowsweet.Persistence is
       end if;
    end Insert;
 
+   function Get_Primary_Key (Mappings : Bean_Mappings;
+                             Bean_Name : String := "")
+                             return String is
+   begin
+      for I in Mappings'Range loop
+         if Mappings (I).Is_Primary_Key
+           and then Length (Mappings (I).Property_Name) > Bean_Name'Length
+           and then Slice (Mappings (I).Property_Name, 1, Bean_Name'Length)
+             = Bean_Name
+         then
+            return To_String (Mappings (I).Column);
+         end if;
+      end loop;
+      return "";
+   end Get_Primary_Key;
+
+   function Get_Primary_Key_By_Table (Mappings : Bean_Mappings;
+                                      Table_Name : String)
+                                      return String is
+   begin
+      for I in Mappings'Range loop
+         if Mappings (I).Is_Primary_Key
+           and then To_String (Mappings (I).Table) = Table_Name
+         then
+            return To_String (Mappings (I).Column);
+         end if;
+      end loop;
+      return "";
+   end Get_Primary_Key_By_Table;
+
    procedure Update
      (DB : Database_Connection;
       Table_Name : String;
@@ -430,7 +461,8 @@ package body Meadowsweet.Persistence is
       Params : SQL_Parameters (1 .. Property_Names'Length);
       J : Positive;
       Key_Value : Object;
-      Primary_Key : constant String := Get_Primary_Key (Mappings);
+      Primary_Key : constant String := Get_Primary_Key_By_Table
+        (Mappings, Table_Name);
       Mapping_Index : Natural;
    begin
       if Primary_Key = "" then
@@ -488,11 +520,12 @@ package body Meadowsweet.Persistence is
       Mappings : Bean_Mappings;
       Key : Integer)
    is
-      Primary_Key : constant String := Get_Primary_Key (Mappings);
+      Primary_Key : constant String := Get_Primary_Key_By_Table
+        (Mappings, Table_Name);
       P : Prepared_Statement;
    begin
       if Primary_Key = "" then
-         raise Persistence_Error with "Update requires primary key";
+         raise Persistence_Error with "Delete requires primary key";
       end if;
       P := GNATCOLL.SQL.Exec.Prepare
         ("DELETE FROM " & Table_Name & " WHERE " & Primary_Key
@@ -918,31 +951,6 @@ package body Meadowsweet.Persistence is
       end Get;
 
    end Tables;
-
-   function Get_Primary_Key (Mappings : Bean_Mappings;
-                             Bean_Name : String := "")
-                             return String is
-   begin
-      for I in Mappings'Range loop
-         if Mappings (I).Is_Primary_Key
-           and then Length (Mappings (I).Property_Name) > Bean_Name'Length
-           and then Slice (Mappings (I).Property_Name, 1, Bean_Name'Length)
-             = Bean_Name
-         then
-            declare
-               Last_Part : constant String := Slice
-                 (Mappings (I).Property_Name,
-                  Bean_Name'Length + 1,
-                  Length (Mappings (I).Property_Name));
-            begin
-               if Index (Last_Part, ".") = 0 then
-                  return Last_Part;
-               end if;
-            end;
-         end if;
-      end loop;
-      return "";
-   end Get_Primary_Key;
 
    function Max_Parameter_No (Self : Expression_Impl)
                               return Natural is
