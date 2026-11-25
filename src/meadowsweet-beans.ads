@@ -10,11 +10,6 @@ package Meadowsweet.Beans is
      and Meadowsweet.Inspectable_Bean
    with null record;
 
-   overriding function Get_Value
-     (From : Composite_Bean;
-      Name : String)
-      return Object is abstract;
-
    --  Returns a reference to a child bean instead of a copy
    function Get_Bean
      (From : in out Composite_Bean;
