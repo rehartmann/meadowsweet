@@ -17,13 +17,13 @@ package body Invoice_DB is
       return new Customer;
    end Create_Customer;
 
-   --  Customer_Mappings : constant Bean_Mappings
-   --    := (1 => Primary_Key_Mapping
-   --        (Property_Path => "id",
-   --         Column => "id",
-   --         Table => "customers",
-   --         Property_Type => Util.Beans.Objects.TYPE_INTEGER,
-   --         Is_Auto_Generated => True));
+   Customer_Mappings : constant Bean_Mappings
+     := (1 => Primary_Key_Mapping
+         (Property_Path => "id",
+          Column => "id",
+          Table => "customers",
+          Property_Type => Util.Beans.Objects.TYPE_INTEGER,
+          Is_Auto_Generated => True));
 
    function Create_Item return access Meadowsweet.Inspectable_Bean'Class is
    begin
