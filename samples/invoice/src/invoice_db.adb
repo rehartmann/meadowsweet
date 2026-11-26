@@ -17,13 +17,13 @@ package body Invoice_DB is
       return new Customer;
    end Create_Customer;
 
-   Customer_Mappings : constant Bean_Mappings
-     := (1 => Primary_Key_Mapping
-         (Property_Name => "id",
-          Column => "id",
-          Table => "customers",
-          Property_Type => Util.Beans.Objects.TYPE_INTEGER,
-          Is_Auto_Generated => True));
+   --  Customer_Mappings : constant Bean_Mappings
+   --    := (1 => Primary_Key_Mapping
+   --        (Property_Path => "id",
+   --         Column => "id",
+   --         Table => "customers",
+   --         Property_Type => Util.Beans.Objects.TYPE_INTEGER,
+   --         Is_Auto_Generated => True));
 
    function Create_Item return access Meadowsweet.Inspectable_Bean'Class is
    begin
@@ -32,25 +32,25 @@ package body Invoice_DB is
 
    Invoice_Mappings : constant Bean_Mappings
      := (Primary_Key_Mapping
-           (Property_Name => "id",
+           (Property_Path => "id",
             Column => "id",
             Table => "invoices",
             Property_Type => Util.Beans.Objects.TYPE_INTEGER,
             Is_Auto_Generated => True),
          Mapping
-           (Property_Name => "recipient",
+           (Property_Path => "recipient",
             Property_Type => Util.Beans.Objects.TYPE_BEAN,
             Table => "customers",
             Column => "customer_id",
             Factory => Create_Customer'Access,
             Target_Column => "id"),
          To_Many_Mapping
-           (Property_Name => "items",
+           (Property_Path => "items",
             Table => "items",
             Target_Column => "invoice_id",
             Factory => Create_Item'Access),
          Primary_Key_Mapping
-           (Property_Name => "items.id",
+           (Property_Path => "items.id",
             Column => "id",
             Table => "items",
             Property_Type => Util.Beans.Objects.TYPE_INTEGER,
@@ -259,6 +259,13 @@ package body Invoice_DB is
    begin
       Customer_Persistence.Delete (DB, "invoices", Invoice_Mappings, Id);
    end Delete_Invoice;
+
+   procedure Insert (Source : Item'Class) is
+      DB : constant Database_Connection
+        := Tasking.Get_Task_Connection (DB_Descr);
+   begin
+      Insert (DB, "items", Invoice_Mappings, Source, "items");
+   end Insert;
 
    procedure Delete_Item (Id : Positive) is
       DB : constant Database_Connection

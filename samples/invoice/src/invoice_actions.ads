@@ -72,6 +72,14 @@ package Invoice_Actions is
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);
 
+   procedure Items_New_Form
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class);
+
+   procedure Items_Create
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class);
+
    procedure Invoices_Item_Delete
      (Request : in out Servlet.Requests.Request'Class;
       Response : in out Servlet.Responses.Response'Class);

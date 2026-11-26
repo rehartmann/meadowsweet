@@ -1,3 +1,4 @@
+with Ada.Text_IO;
 with Meadowsweet.Jintp;
 
 package body Invoice_Actions is
@@ -188,6 +189,43 @@ package body Invoice_Actions is
       Invoice_DB.Delete_Invoice (Id);
       Response.Send_Redirect ("/invoice/invoices");
    end Invoices_Delete;
+
+   procedure Items_New_Form
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class) is
+      New_Item : Item;
+   begin
+      New_Item.Invoice_Id := Positive'Value
+        (Request.Get_Parameter ("invoice-id"));
+      Renderer.Render_Response ("views/items-new.html",
+                                New_Item,
+                                Response);
+   end Items_New_Form;
+
+   procedure Get_Item (Request : Servlet.Requests.Request'Class;
+                       Target : in out Item) is
+   begin
+      Target.Invoice_Id := Natural'Value
+        (Request.Get_Parameter ("invoice-id"));
+      Target.Product := To_Unbounded_String
+        (Request.Get_Parameter ("product"));
+      Target.Quantity := Natural'Value
+        (Request.Get_Parameter ("quantity"));
+   end Get_Item;
+
+   procedure Items_Create
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class)
+   is
+      Source : Item;
+      Inv : Invoice;
+   begin
+      Ada.Text_IO.Put_Line ("Items_Create invoked");
+      Get_Item (Request, Source);
+      Invoice_DB.Insert (Source);
+      Invoice_DB.Get (Source.Invoice_Id, Inv);
+      Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
+   end Items_Create;
 
    procedure Invoices_Item_Delete
      (Request : in out Servlet.Requests.Request'Class;

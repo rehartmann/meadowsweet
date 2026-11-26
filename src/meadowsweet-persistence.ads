@@ -35,7 +35,8 @@ package Meadowsweet.Persistence is
      return access Inspectable_Bean'Class;
 
    function Mapping
-     (Property_Name : String;
+     (Property_Path : String; --  The path by which the property can be reached
+                              --  from the top of the bean hierarchy
       Property_Type : Util.Beans.Objects.Data_Type;
       Is_Primary_Key : Boolean := False;
       Is_Auto_Generated : Boolean := False;
@@ -46,7 +47,7 @@ package Meadowsweet.Persistence is
       return Bean_Mapping;
 
    function Primary_Key_Mapping
-     (Property_Name : String;
+     (Property_Path : String;
       Property_Type : Util.Beans.Objects.Data_Type
       := Util.Beans.Objects.TYPE_INTEGER;
       Table : String := "";
@@ -58,7 +59,7 @@ package Meadowsweet.Persistence is
    --  The property must be a Vector_Bean. The source bean must implement
    --  Composite_Bean and implement Get_Bean and Set_Bean for the property.
    function To_Many_Mapping
-     (Property_Name : String;
+     (Property_Path : String;
       Table : String;
       Target_Column : String;
       Factory : Bean_Factory)
@@ -71,7 +72,8 @@ package Meadowsweet.Persistence is
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Table_Name : String;
       Mappings : Bean_Mappings;
-      Bean : Meadowsweet.Inspectable_Bean'Class);
+      Bean : Meadowsweet.Inspectable_Bean'Class;
+      Property_Path : String := "");
 
    --  Updates a single record using the primary key.
    procedure Update
@@ -193,7 +195,7 @@ package Meadowsweet.Persistence is
 private
 
    type Bean_Mapping is record
-      Property_Name : Unbounded_String;
+      Property_Path : Unbounded_String;
       Property_Type : Util.Beans.Objects.Data_Type;
       Is_Primary_Key : Boolean;
       Is_Auto_Generated : Boolean;

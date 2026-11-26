@@ -83,8 +83,6 @@ package Invoice_DB is
 
    procedure Delete_Invoice (Id : Positive);
 
-   procedure Delete_Item (Id : Positive);
-
    type Item is new Util.Beans.Basic.Bean
      and Meadowsweet.Inspectable_Bean with record
       Id : Natural := 0;
@@ -106,5 +104,9 @@ package Invoice_DB is
    procedure Set_Value (From : in out Item;
                         Name : String;
                         Value : Object);
+
+   procedure Insert (Source : Item'Class);
+
+   procedure Delete_Item (Id : Positive);
 
 end Invoice_DB;

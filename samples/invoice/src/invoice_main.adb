@@ -26,29 +26,34 @@ begin
    Meadowsweet.Initialize (Context, App, WS, "/invoice", "/*");
 
    Meadowsweet.Add_Route (Context, "GET", "/customers/new",
-                  Invoice_Actions.Customers_New_Form'Access);
+                          Invoice_Actions.Customers_New_Form'Access);
    Meadowsweet.Add_Route (Context, "GET", "/customers",
-                  Invoice_Actions.Customers_Index'Access);
+                          Invoice_Actions.Customers_Index'Access);
    Meadowsweet.Add_Route (Context, "POST", "/customers",
-                  Invoice_Actions.Customers_Create'Access);
+                          Invoice_Actions.Customers_Create'Access);
    Meadowsweet.Add_Route (Context, "GET", "/customers/{id}",
-                  Invoice_Actions.Customers_Show'Access);
+                          Invoice_Actions.Customers_Show'Access);
    Meadowsweet.Add_Route (Context, "DELETE", "/customers/{id}",
-                  Invoice_Actions.Customers_Delete'Access);
+                          Invoice_Actions.Customers_Delete'Access);
 
    Meadowsweet.Add_Route (Context, "GET", "/invoices/new",
-                  Invoice_Actions.Invoices_New_Form'Access);
+                          Invoice_Actions.Invoices_New_Form'Access);
    Meadowsweet.Add_Route (Context, "GET", "/invoices",
-                  Invoice_Actions.Invoices_Index'Access);
+                          Invoice_Actions.Invoices_Index'Access);
    Meadowsweet.Add_Route (Context, "POST", "/invoices",
-                  Invoice_Actions.Invoices_Create'Access);
+                          Invoice_Actions.Invoices_Create'Access);
    Meadowsweet.Add_Route (Context, "GET", "/invoices/{id}",
-                  Invoice_Actions.Invoices_Show'Access);
+                          Invoice_Actions.Invoices_Show'Access);
    Meadowsweet.Add_Route (Context, "DELETE", "/invoices/{id}",
-                  Invoice_Actions.Invoices_Delete'Access);
+                          Invoice_Actions.Invoices_Delete'Access);
+
    Meadowsweet.Add_Route (Context,
                           "DELETE", "/invoices/{invoice-id}/items/{item-id}",
                           Invoice_Actions.Invoices_Item_Delete'Access);
+   Meadowsweet.Add_Route (Context, "GET", "/items/new",
+                          Invoice_Actions.Items_New_Form'Access);
+   Meadowsweet.Add_Route (Context, "POST", "/items",
+                          Invoice_Actions.Items_Create'Access);
 
    WS.Start;
    delay 6000.0;
