@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>New Item</title>
+<link rel="stylesheet" type="text/css" href="/invoice/style.css">
+<body>
+<h2>New Item</h2>
+<div class="panel_content">
+<form method="POST" action="/invoice/items" enctype="application/x-www-form-urlencoded">
+<label class="form_label">Invoice ID</label>
+<input class="form_input" name="invoice-id" value="{{ invoice_id }}" readonly>
+<label class="form_label">Product</label>
+<input class="form_input" name="product">
+<label class="form_label">Quantity</label>
+<input class="form_input" name="quantity">
+</div>
+<p><button>Submit</button>
+</form>
