@@ -12,7 +12,7 @@ package body Phonebook_DB is
 
    Mappings : constant Bean_Mappings
      := (1 => Primary_Key_Mapping (
-         Property_Name => "id",
+         Property_Path => "id",
          Table => "addresses",
          Column => "id",
          Is_Auto_Generated => True));
