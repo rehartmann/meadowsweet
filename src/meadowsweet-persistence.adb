@@ -37,6 +37,10 @@ package body Meadowsweet.Persistence is
       Target_Column : String := "")
       return Bean_Mapping is
    begin
+      if Property_Type = TYPE_BEAN and then Factory = null then
+         raise Persistence_Error
+           with "factory required for bean-valued property";
+      end if;
       return (Property_Path => To_Unbounded_String (Property_Path),
               Property_Type => Property_Type,
               Is_Primary_Key => Is_Primary_Key,
@@ -84,7 +88,7 @@ package body Meadowsweet.Persistence is
      (Property_Path : String;
       Table : String;
       Target_Column : String;
-      Factory : Bean_Factory)
+      Factory : not null Bean_Factory)
      return Bean_Mapping is
    begin
       return (Property_Path => To_Unbounded_String (Property_Path),

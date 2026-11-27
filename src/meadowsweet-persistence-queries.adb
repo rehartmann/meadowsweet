@@ -430,6 +430,7 @@ package body Meadowsweet.Persistence.Queries is
       Separator_Index : Natural;
       Column_Count_Total : Natural := 0;
       Param_No : Natural;
+      Target_Column : Unbounded_String;
    begin
       if Distinct then
          Append (SQL, "DISTINCT ");
@@ -514,13 +515,19 @@ package body Meadowsweet.Persistence.Queries is
          Append (SQL, Ada.Strings.Fixed.Trim (Mapping_Index'Image,
                  Ada.Strings.Both));
          Append (SQL, '.');
-         if Mappings (Mapping_Index).Target_Column = Null_Unbounded_String
+         if Mappings (Mapping_Index).Target_Column /= Null_Unbounded_String
          then
-            raise Meadowsweet.Persistence.Persistence_Error
-            with "no valid mapping for join " & To_String (Joins (I));
+            Target_Column := Mappings (Mapping_Index).Target_Column;
+         else
+            Target_Column := To_Unbounded_String
+              (Get_Primary_Key_By_Table
+                 (Mappings, To_String (Mappings (Mapping_Index).Table)));
+            if Target_Column = Null_Unbounded_String then
+               raise Meadowsweet.Persistence.Persistence_Error
+               with "no valid mapping for join " & To_String (Joins (I));
+            end if;
          end if;
-
-         Append (SQL, Mappings (Mapping_Index).Target_Column);
+         Append (SQL, Target_Column);
          Append (SQL, ' ');
       end loop;
       Column_Count := Column_Count_Total;

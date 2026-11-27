@@ -42,8 +42,13 @@ package body Invoice_DB is
             Property_Type => Util.Beans.Objects.TYPE_BEAN,
             Table => "customers",
             Column => "customer_id",
-            Factory => Create_Customer'Access,
-            Target_Column => "id"),
+            Factory => Create_Customer'Access),
+         Primary_Key_Mapping
+           (Property_Path => "customer.id",
+            Column => "id",
+            Table => "customers",
+            Property_Type => Util.Beans.Objects.TYPE_INTEGER,
+            Is_Auto_Generated => True),
          To_Many_Mapping
            (Property_Path => "items",
             Table => "items",

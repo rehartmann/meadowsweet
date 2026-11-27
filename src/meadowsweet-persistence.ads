@@ -34,6 +34,7 @@ package Meadowsweet.Persistence is
    type Bean_Factory is access function
      return access Inspectable_Bean'Class;
 
+   --  Returns a mapping of a bean property to a table column
    function Mapping
      (Property_Path : String; --  The path by which the property can be reached
                               --  from the top of the bean hierarchy
@@ -46,6 +47,7 @@ package Meadowsweet.Persistence is
       Target_Column : String := "")
       return Bean_Mapping;
 
+   --  Defines a mapping to a primary key column.
    function Primary_Key_Mapping
      (Property_Path : String;
       Property_Type : Util.Beans.Objects.Data_Type
@@ -62,7 +64,7 @@ package Meadowsweet.Persistence is
      (Property_Path : String;
       Table : String;
       Target_Column : String;
-      Factory : Bean_Factory)
+      Factory : not null Bean_Factory)
      return Bean_Mapping;
 
    type String_Array is array (Positive range <>) of Unbounded_String;
@@ -242,6 +244,10 @@ private
    function Get_Primary_Key (Mappings : Bean_Mappings;
                              Bean_Name : String := "")
                              return String;
+
+   function Get_Primary_Key_By_Table (Mappings : Bean_Mappings;
+                                      Table_Name : String)
+                                      return String;
 
    function Is_Scalar (B : Util.Beans.Basic.Readonly_Bean'Class;
                        Name : String)
