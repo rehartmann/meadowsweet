@@ -1,4 +1,3 @@
-with Ada.Text_IO;
 with Meadowsweet.Jintp;
 
 package body Invoice_Actions is
@@ -220,12 +219,44 @@ package body Invoice_Actions is
       Source : Item;
       Inv : Invoice;
    begin
-      Ada.Text_IO.Put_Line ("Items_Create invoked");
       Get_Item (Request, Source);
       Invoice_DB.Insert (Source);
       Invoice_DB.Get (Source.Invoice_Id, Inv);
       Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
    end Items_Create;
+
+   procedure Items_Edit
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class)
+   is
+      Source : Item;
+   begin
+      Source.Invoice_Id := Positive'Value
+        (Meadowsweet.Get_Path_Parameter (Request, "invoice-id"));
+      Source.Id := Positive'Value
+        (Meadowsweet.Get_Path_Parameter (Request, "item-id"));
+      Source.Product := To_Unbounded_String (Request.Get_Parameter ("product"));
+      Source.Quantity := Positive'Value (Request.Get_Parameter ("quantity"));
+      Renderer.Render_Response ("views/items-edit.html", Source, Response);
+   end Items_Edit;
+
+   procedure Items_Update
+     (Request : in out Servlet.Requests.Request'Class;
+      Response : in out Servlet.Responses.Response'Class)
+   is
+      Source : Item;
+      Inv : Invoice;
+   begin
+      Source.Invoice_Id := Positive'Value
+        (Meadowsweet.Get_Path_Parameter (Request, "invoice-id"));
+      Source.Id := Positive'Value
+        (Meadowsweet.Get_Path_Parameter (Request, "item-id"));
+      Source.Product := To_Unbounded_String (Request.Get_Parameter ("product"));
+      Source.Quantity := Positive'Value (Request.Get_Parameter ("quantity"));
+      Invoice_DB.Update (Source);
+      Invoice_DB.Get (Source.Invoice_Id, Inv);
+      Renderer.Render_Response ("views/invoices-show.html", Inv, Response);
+   end Items_Update;
 
    procedure Invoices_Item_Delete
      (Request : in out Servlet.Requests.Request'Class;

@@ -107,6 +107,8 @@ package Invoice_DB is
 
    procedure Insert (Source : Item'Class);
 
+   procedure Update (Source : Item'Class);
+
    procedure Delete_Item (Id : Positive);
 
 end Invoice_DB;

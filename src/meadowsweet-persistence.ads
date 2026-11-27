@@ -82,7 +82,8 @@ package Meadowsweet.Persistence is
      (DB : GNATCOLL.SQL.Exec.Database_Connection;
       Table_Name : String;
       Mappings : Bean_Mappings;
-      Bean : Meadowsweet.Inspectable_Bean'Class);
+      Bean : Meadowsweet.Inspectable_Bean'Class;
+      Property_Path : String := "");
 
    --  Deletes a single record using the primary ley.
    procedure Delete

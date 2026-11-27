@@ -47,13 +47,20 @@ begin
    Meadowsweet.Add_Route (Context, "DELETE", "/invoices/{id}",
                           Invoice_Actions.Invoices_Delete'Access);
 
-   Meadowsweet.Add_Route (Context,
-                          "DELETE", "/invoices/{invoice-id}/items/{item-id}",
-                          Invoice_Actions.Invoices_Item_Delete'Access);
    Meadowsweet.Add_Route (Context, "GET", "/items/new",
                           Invoice_Actions.Items_New_Form'Access);
    Meadowsweet.Add_Route (Context, "POST", "/items",
                           Invoice_Actions.Items_Create'Access);
+   Meadowsweet.Add_Route (Context, "GET",
+                          "/invoices/{invoice-id}/items/{item-id}/edit",
+                          Invoice_Actions.Items_Edit'Access);
+   Meadowsweet.Add_Route (Context, "POST",
+                          "/invoices/{invoice-id}/items/{item-id}",
+                          Invoice_Actions.Items_Update'Access);
+   Meadowsweet.Add_Route (Context,
+                          "DELETE",
+                          "/invoices/{invoice-id}/items/{item-id}",
+                          Invoice_Actions.Invoices_Item_Delete'Access);
 
    WS.Start;
    delay 6000.0;

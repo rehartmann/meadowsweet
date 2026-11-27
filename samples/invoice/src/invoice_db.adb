@@ -279,6 +279,13 @@ package body Invoice_DB is
       Customer_Persistence.Delete (DB, "items", Invoice_Mappings, Id);
    end Delete_Item;
 
+   procedure Update (Source : Item'Class) is
+      DB : constant Database_Connection
+        := Tasking.Get_Task_Connection (DB_Descr);
+   begin
+      Update (DB, "items", Invoice_Mappings, Source, "items");
+   end Update;
+
    overriding
    function Property_Names (From : Item)
                             return Meadowsweet.String_Array is

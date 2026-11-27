@@ -2,6 +2,7 @@ with Ada.Containers;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
+with Meadowsweet.Persistence;
 with Util.Beans.Objects.Vectors;
 with Meadowsweet.Persistence.Queries;
 with Meadowsweet.Beans;
@@ -113,8 +114,7 @@ package body Meadowsweet.Persistence is
       return 0;
    end Find_Mapping;
 
-   function To_Parameter (Value : Object;
-                          Mapping : Bean_Mapping)
+   function To_Parameter (Value : Object)
                           return SQL_Parameter is
    begin
       case Get_Type (Value) is
@@ -125,12 +125,14 @@ package body Meadowsweet.Persistence is
          when TYPE_FLOAT =>
             return +To_Float (Value);
          when TYPE_BEAN =>
-            if Mapping.Target_Column = Null_Unbounded_String then
-               raise Persistence_Error with "no target primary key provided for "
-                 & To_String (Mapping.Property_Path);
-            end if;
-            return To_Parameter (Get_Value (Value, To_String (Mapping.Target_Column)),
-                                 Null_Mapping);
+            raise Persistence_Error
+              with "bean properties are not supported";
+            --  if Mapping.Target_Column = Null_Unbounded_String then
+            --     raise Persistence_Error with "no target primary key provided for "
+            --       & To_String (Mapping.Property_Path);
+            --  end if;
+            --  return To_Parameter (Get_Value (Value, To_String (Mapping.Target_Column)),
+            --                       Null_Mapping);
          when TYPE_ARRAY =>
             raise Persistence_Error
               with "array properties are not supported";
@@ -361,6 +363,47 @@ package body Meadowsweet.Persistence is
       Do_Merge (Composite_Bean'Class (Target), Composite_Bean'Class (Source));
    end Merge;
 
+  function Find_Primary_Key_Mapping_By_Table
+     (Mappings : Bean_Mappings;
+      Table_Name : String)
+         return Natural is
+   begin
+      for I in Mappings'Range loop
+         if Mappings (I).Is_Primary_Key
+           and then To_String (Mappings (I).Table) = Table_Name
+         then
+            return I;
+         end if;
+      end loop;
+      return 0;
+   end Find_Primary_Key_Mapping_By_Table;
+
+   function Bean_Value_To_Key (Value : Object;
+                               Mapping_Index : Natural;
+                               Mappings : Bean_Mappings)
+                               return Object
+   is
+      Key_Value : Object;
+      Key_Mapping_Index : Natural;
+   begin
+      if Get_Type (Value) /= TYPE_BEAN then
+         return Value;
+      end if;
+      if Mapping_Index = 0 then
+         raise Persistence_Error with
+           "no key found for bean-valued property";
+      end if;
+      Key_Mapping_Index := Find_Primary_Key_Mapping_By_Table
+        (Mappings, To_String (Mappings (Mapping_Index).Table));
+      if Key_Mapping_Index = 0 then
+         raise Persistence_Error with
+           "no key found for bean-valued property";
+      end if;
+      Key_Value := To_Bean (Value).Get_Value
+        (Last_Path_Component (To_String (Mappings (Key_Mapping_Index).Property_Path)));
+      return Key_Value;
+   end Bean_Value_To_Key;
+
    procedure Insert
      (DB : Database_Connection;
       Table_Name : String;
@@ -411,24 +454,22 @@ package body Meadowsweet.Persistence is
          J : Natural := 1;
          Mapping_Index : Natural;
          Value : Object;
+         Key_Mapping_Index : Natural;
       begin
          for I in Property_Names'Range loop
-         Mapping_Index := Find_Mapping
-           (Mappings,
-            (if Property_Path = "" then To_String (Property_Names (I))
-                 else Property_Path & '.' & To_String (Property_Names (I))));
+            Mapping_Index := Find_Mapping
+              (Mappings,
+               (if Property_Path = "" then To_String (Property_Names (I))
+                else Property_Path & '.' & To_String (Property_Names (I))));
             if Mapping_Index = 0
               or else (not Mappings (Mapping_Index).Is_Primary_Key
                        and then Mappings (Mapping_Index).Column
                        /= Null_Unbounded_String)
             then
-               if Get_Type (Value) /= TYPE_ARRAY then
-                  Params (J) := To_Parameter
-                    (Bean.Get_Value (To_String (Property_Names (I))),
-                     (if Mapping_Index > 0 then Mappings (Mapping_Index)
-                      else Null_Mapping));
-                  J := J + 1;
-               end if;
+               Value := Bean.Get_Value (To_String (Property_Names (I)));
+               Params (J) := To_Parameter (Bean_Value_To_Key(
+                                           Value, Mapping_Index, Mappings));
+               J := J + 1;
             end if;
          end loop;
          Execute (DB, P, Params);
@@ -457,30 +498,28 @@ package body Meadowsweet.Persistence is
 
    function Get_Primary_Key_By_Table (Mappings : Bean_Mappings;
                                       Table_Name : String)
-                                      return String is
+                                      return String
+   is
+      Mapping_Index : Natural := Find_Primary_Key_Mapping_By_Table
+        (Mappings, Table_Name);
    begin
-      for I in Mappings'Range loop
-         if Mappings (I).Is_Primary_Key
-           and then To_String (Mappings (I).Table) = Table_Name
-         then
-            return To_String (Mappings (I).Column);
-         end if;
-      end loop;
-      return "";
+      return (if Mapping_Index = 0 then ""
+              else To_String (Mappings (Mapping_Index).Column));
    end Get_Primary_Key_By_Table;
 
    procedure Update
      (DB : Database_Connection;
       Table_Name : String;
       Mappings : Bean_Mappings;
-      Bean : Meadowsweet.Inspectable_Bean'Class)
+      Bean : Meadowsweet.Inspectable_Bean'Class;
+      Property_Path : String := "")
    is
       Property_Names : constant Meadowsweet.String_Array := Bean.Property_Names;
       Q : Unbounded_String := To_Unbounded_String ("UPDATE ")
         & Table_Name & " SET ";
       Params : SQL_Parameters (1 .. Property_Names'Length);
       J : Positive;
-      Key_Value : Object;
+      Value, Key_Value : Object;
       Primary_Key : constant String := Get_Primary_Key_By_Table
         (Mappings, Table_Name);
       Mapping_Index : Natural;
@@ -494,7 +533,16 @@ package body Meadowsweet.Persistence is
       end if;
       J := 1;
       for I in Property_Names'Range loop
-         if Property_Names (I) /= Primary_Key then
+         Mapping_Index := Find_Mapping
+           (Mappings,
+            (if Property_Path = "" then To_String (Property_Names (I))
+                 else Property_Path & '.' & To_String (Property_Names (I))));
+
+         if Mapping_Index = 0
+           or else (not Mappings (Mapping_Index).Is_Primary_Key
+                    and then Mappings (Mapping_Index).Column
+                    /= Null_Unbounded_String)
+         then
             if J > 1 then
                Append (Q, ", ");
             end if;
@@ -510,17 +558,22 @@ package body Meadowsweet.Persistence is
       Append (Q, DB.Parameter_String (J, ""));
       J := 1;
       for I in Property_Names'Range loop
-         if Property_Names (I) /= Primary_Key then
-            Mapping_Index := Find_Mapping (Mappings,
-                                           To_String (Property_Names (I)));
-            Params (J) := To_Parameter
-              (Bean.Get_Value (To_String (Property_Names (I))),
-               (if Mapping_Index > 0 then Mappings (Mapping_Index)
-                else Null_Mapping));
+         Mapping_Index := Find_Mapping
+           (Mappings,
+            (if Property_Path = "" then To_String (Property_Names (I))
+                 else Property_Path & '.' & To_String (Property_Names (I))));
+         if Mapping_Index = 0
+           or else (not Mappings (Mapping_Index).Is_Primary_Key
+                    and then Mappings (Mapping_Index).Column
+                    /= Null_Unbounded_String)
+         then
+            Value := Bean.Get_Value (To_String (Property_Names (I)));
+            Params (J) := To_Parameter (Bean_Value_To_Key(
+                                        Value, Mapping_Index, Mappings));
             J := J + 1;
          end if;
       end loop;
-      Params (Params'Last) := To_Parameter (Key_Value, Null_Mapping);
+      Params (Params'Last) := To_Parameter (Key_Value);
       declare
          P : constant Prepared_Statement :=
            GNATCOLL.SQL.Exec.Prepare (To_String (Q),

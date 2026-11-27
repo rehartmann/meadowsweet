@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Edit Item</title>
+<link rel="stylesheet" type="text/css" href="/invoice/style.css">
+<body>
+<h2>Edit Item</h2>
+<div class="panel_content">
+<form method="POST" action="/invoice/invoices/{{ invoice_id }}/items/{{ id }}"
+enctype="application/x-www-form-urlencoded">
+<label class="form_label">Product</label>
+<input class="form_input" name="product" value="{{ product }}">
+<label class="form_label">Quantity</label>
+<input class="form_input" name="quantity" value="{{ quantity }}">
+</div>
+<p><button>Submit</button>
+</form>
